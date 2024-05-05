@@ -19,6 +19,7 @@ class LLM:
     def __init__(self, system_message: str = SYSTEM_MESSAGE) -> None:
         self._system_message = system_message
         self._history = [{"role": "system", "content": self._system_message}]
+        self._response = ""
 
     def _append_user_message(self, message: str) -> None:
         self._history.append({"role": "user", "content": message})
@@ -32,9 +33,16 @@ class LLM:
 
     def query(self, user_input: str) -> Generator[str, None, None]:
         self._append_user_message(user_input)
+        response = ""
         for token in self._query(user_input=user_input):
             yield token
+            response += token
+        self._response = response
         self._reset_history()
+
+    @property
+    def last_response(self) -> str:
+        return self._response
 
     @classmethod
     def create(cls, llm_type: LLMs, **kwargs) -> 'LLM':

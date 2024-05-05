@@ -1,1 +1,6 @@
 datasets==2.15.0
+openai
+pvorca==0.2.0
+elevenlabs
+numpy
+soundfile

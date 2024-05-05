@@ -226,32 +226,14 @@ def main(args: argparse.Namespace) -> None:
 
     stats = Stats(llm=llm_type, tts=tts_type, results_folder=results_folder)
 
+    counter = 0
     print("Running benchmark ...")
     for sentence in tqdm(benchmark_sentences):
         timer.reset()
 
         timer.log_time_llm_request()
-        text_generator = llm.query(sentence)
 
-        is_first = True
-        llm_response = ""
-        for token in text_generator:
-            if is_first:
-                timer.log_time_first_llm_token()
-                is_first = False
-
-            if synthesizer.text_streamable:
-                synthesizer.synthesize(token)
-
-            llm_response += token
-            timer.increment_num_tokens()
-
-        timer.log_time_last_llm_token()
-
-        if synthesizer.text_streamable:
-            synthesizer.flush()
-        else:
-            synthesizer.synthesize(llm_response)
+        synthesizer.synthesize(text_stream=llm.query(sentence))
 
         timer.wait_for_first_audio()
 
@@ -259,17 +241,24 @@ def main(args: argparse.Namespace) -> None:
             num_seconds_total_delay=timer.num_seconds_total_delay(),
             num_seconds_first_token=timer.num_seconds_to_first_token(),
             num_seconds_first_audio=timer.num_seconds_to_first_audio(),
-            num_words=len(llm_response.split()),
+            num_words=len(llm.last_response.split()),
             num_tokens_per_second=timer.num_tokens_per_second())
         stats.accumulate(timing_result=timing_result)
 
         if DEBUG:
             print(f"Input: {sentence}")
-            print(f"Answer: {llm_response}")
-            print(f"Num seconds to first token: {timer.num_seconds_to_first_token():.2f}")
-            print(f"Num seconds to first audio: {timer.num_seconds_to_first_audio():.2f}")
-            print(f"Total delay: {timer.num_seconds_total_delay():.2f}")
+            print(f"Answer: {llm.last_response}")
+            print(f"llm request -> first token: {timer.num_seconds_to_first_token():.2f}")
+            print(f"first token -> first audio: {timer.num_seconds_to_first_audio():.2f}")
+            print(f"tts request -> first audio: {timer.num_seconds_tts_request_first_audio():.2f}")
+            print(f"Total delay (TTFB - time to first byte): {timer.num_seconds_total_delay():.2f}")
+            timer.wait_for_last_audio()
+            audio_path = os.path.join(results_folder, f"audio_{counter}.wav")
+            synthesizer.save_and_reset_last_audio(audio_path)
+            print(f"Saved audio to `{audio_path}`")
             print()
+
+        counter += 1
 
     stats.save_results()
 

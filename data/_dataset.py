@@ -41,7 +41,7 @@ class TextDataset:
 
 class Taskmaster2Dataset(TextDataset):
     NAME = "taskmaster2"
-    CATEGORIES = ["flights", "food-ordering", "hotels", "movies", "music", "restaurant-search", "sports"]
+    CATEGORIES = ["flights"]  # , "food-ordering", "hotels", "movies", "music", "restaurant-search", "sports"]
 
     def __init__(self, categories: Optional[Sequence[str]] = None) -> None:
         super().__init__()
