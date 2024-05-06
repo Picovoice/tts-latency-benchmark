@@ -31,12 +31,12 @@ WHITE = rgb_from_hex("#FFFFFF")
 BLUE = rgb_from_hex("#377DFF")
 
 ENGINE_PRINT_NAMES = {
-    Synthesizers.OPENAI: 'OpenAI TTS',
+    Synthesizers.OPENAI_TTS: 'OpenAI TTS',
     Synthesizers.PICOVOICE_ORCA: 'Picovoice\nOrca',
 }
 
 ENGINE_COLORS = {
-    Synthesizers.OPENAI: GREY1,
+    Synthesizers.OPENAI_TTS: GREY1,
     Synthesizers.PICOVOICE_ORCA: BLUE,
 }
 

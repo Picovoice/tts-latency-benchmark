@@ -1,6 +1,9 @@
+azure-cognitiveservices-speech
+boto3
 datasets==2.15.0
+elevenlabs
+ibm-watson>=7.0.0
+numpy
 openai
 pvorca==0.2.0
-elevenlabs
-numpy
 soundfile

@@ -1,4 +1,5 @@
 import threading
+from contextlib import closing
 from dataclasses import dataclass
 from enum import Enum
 from queue import Queue
@@ -18,26 +19,28 @@ from ._timer import Timer
 
 
 class Synthesizers(Enum):
-    OPENAI = "openai"
-    PICOVOICE_ORCA = "picovoice_orca"
+    AZURE_TTS = "azure_tts"
+    AMAZON_POLLY = "amazon_polly"
     ELEVENLABS = "elevenlabs"
+    PICOVOICE_ORCA = "picovoice_orca"
+    OPENAI_TTS = "openai_tts"
+    IBM_WATSON_TTS = "ibm_watson_tts"
 
 
 class Synthesizer:
     def __init__(
             self,
             sample_rate: int,
+            audio_encoding: AudioEncodings,
             timer: Timer,
             text_streamable: bool = False,
-            audio_encoding: Optional[AudioEncodings] = None,
     ) -> None:
         self.sample_rate = sample_rate
         self.text_streamable = text_streamable
 
         self._timer = timer
         self._audio_sink = None
-        if audio_encoding is not None:
-            self._audio_sink = AudioSink(sample_rate=self.sample_rate, encoding=audio_encoding)
+        self._audio_sink = AudioSink(sample_rate=self.sample_rate, encoding=audio_encoding)
 
     def synthesize(self, text_stream: Generator[str, None, None]) -> None:
         raise NotImplementedError(
@@ -64,9 +67,12 @@ class Synthesizer:
     @classmethod
     def create(cls, engine: Synthesizers, **kwargs: Any) -> 'Synthesizer':
         subclasses = {
+            Synthesizers.AMAZON_POLLY: AmazonSynthesizer,
+            Synthesizers.AZURE_TTS: AzureSynthesizer,
             Synthesizers.ELEVENLABS: ElevenLabsSynthesizer,
+            Synthesizers.IBM_WATSON_TTS: IBMWatsonSynthesizer,
+            Synthesizers.OPENAI_TTS: OpenAISynthesizer,
             Synthesizers.PICOVOICE_ORCA: PicovoiceOrcaSynthesizer,
-            Synthesizers.OPENAI: OpenAISynthesizer,
         }
 
         if engine not in subclasses:
@@ -95,9 +101,143 @@ class ElevenLabsSynthesizer(Synthesizer):
     def synthesize(self, text_stream: Generator[str, None, None]) -> None:
         raise NotImplementedError()
 
-    @property
-    def info(self) -> str:
+    def __str__(self) -> str:
         return f"{self.NAME}"
+
+
+class IBMWatsonSynthesizer(Synthesizer):
+    NAME = "IBM Watson TTS"
+
+    SAMPLE_RATE = 22050
+    AUDIO_ENCODING = AudioEncodings.BYTES
+
+    def __init__(
+            self,
+            api_key: str,
+            service_url: str,
+            **kwargs: Any
+    ) -> None:
+        from ibm_watson import TextToSpeechV1
+        from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
+        super().__init__(sample_rate=self.SAMPLE_RATE, audio_encoding=self.AUDIO_ENCODING, **kwargs)
+
+        authenticator = IAMAuthenticator(api_key)
+        self._text_to_speech = TextToSpeechV1(authenticator=authenticator)
+        self._text_to_speech.set_service_url(service_url)
+
+    def synthesize(self, text_stream: Generator[str, None, None]) -> None:
+
+        text = self._read_text_stream(text_stream)
+
+        self._timer.log_time_first_synthesis_request()
+
+        result = self._text_to_speech.synthesize(text, accept='audio/wav').get_result()
+        import code
+        code.interact(local=locals())
+
+        self._timer.maybe_log_time_first_audio()
+
+        self._timer.log_time_last_audio()
+
+    def __str__(self) -> str:
+        return f"{self.NAME}"
+
+
+class AzureSynthesizer(Synthesizer):
+    NAME = "Azure TTS"
+
+    VOICE_NAME = "en-CA-ClaraNeural"
+
+    SAMPLE_RATE = 16000
+    AUDIO_ENCODING = AudioEncodings.BYTES
+
+    def __init__(
+            self,
+            speech_key: str,
+            speech_region: str,
+            **kwargs: Any
+    ) -> None:
+        import azure.cognitiveservices.speech as speechsdk
+        super().__init__(
+            sample_rate=self.SAMPLE_RATE,
+            audio_encoding=self.AUDIO_ENCODING,
+            **kwargs)
+
+        speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=speech_region)
+
+        speech_config.speech_synthesis_voice_name = self.VOICE_NAME
+
+        # stream_callback = self.PushAudioOutputStreamSampleCallback(audio_sink=self._audio_sink, timer=self._timer)
+        # push_stream = speechsdk.audio.PushAudioOutputStream(stream_callback)
+        # stream_config = speechsdk.audio.AudioOutputConfig(stream=push_stream)
+        self._synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=None)
+
+    def synthesize(self, text_stream: Generator[str, None, None]) -> None:
+        import azure.cognitiveservices.speech as speechsdk
+
+        text = self._read_text_stream(text_stream)
+
+        self._timer.log_time_first_synthesis_request()
+
+        # result = self._synthesizer.start_speaking_text_async(text).get()
+        result = self._synthesizer.speak_text_async(text).get()
+
+        if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+            self._timer.log_time_last_audio()
+        elif result.reason == speechsdk.ResultReason.Canceled:
+            cancellation_details = result.cancellation_details
+            print(f"Speech synthesis canceled, check speech_key and service_region: {result.reason}")
+            print(f"Cancellation details: {cancellation_details}")
+            print(f"Text: {text}")
+            if cancellation_details.reason == speechsdk.CancellationReason.Error:
+                print("Error details: {}".format(cancellation_details.error_details))
+        else:
+            print(f"Speech synthesis not complete, status: {result.reason}")
+            print(f"Result: {result}")
+
+        import code
+        code.interact(local=locals())
+
+    def __str__(self) -> str:
+        return f"{self.NAME}"
+
+
+class AmazonSynthesizer(Synthesizer):
+    NAME = "Amazon Polly"
+    VOICE = "Joanna"
+
+    SAMPLE_RATE = 22050
+
+    def __init__(self, aws_profile_name: str, **kwargs: Any) -> None:
+        super().__init__(
+            sample_rate=self.SAMPLE_RATE,
+            audio_encoding=AudioEncodings.MP3,
+            **kwargs)
+
+        from boto3 import Session
+        session = Session(profile_name=aws_profile_name)
+        self._client = session.client("polly")
+
+    def synthesize(self, text_stream: Generator[str, None, None]) -> None:
+        text = self._read_text_stream(text_stream)
+
+        self._timer.maybe_log_time_first_synthesis_request()
+
+        response = self._client.synthesize_speech(
+            Text=text,
+            SampleRate=str(self.sample_rate),
+            OutputFormat="mp3",
+            VoiceId="Joanna")
+
+        if "AudioStream" in response:
+            with closing(response["AudioStream"]) as stream:
+                data = stream.read()
+                self._timer.maybe_log_time_first_audio()
+                self._audio_sink.add(data=data)
+        else:
+            raise ValueError(f"Failed to synthesize text: `{text}`")
+
+        self._timer.log_time_last_audio()
 
     def __str__(self) -> str:
         return f"{self.NAME}"
@@ -151,6 +291,7 @@ class OpenAISynthesizer(Synthesizer):
 
 
 class PicovoiceOrcaSynthesizer(Synthesizer):
+    NAME = "Picovoice Orca"
     AUDIO_ENCODING = AudioEncodings.INT16
 
     @dataclass
@@ -235,7 +376,7 @@ class PicovoiceOrcaSynthesizer(Synthesizer):
         self._orca.delete()
 
     def __str__(self) -> str:
-        return "Picovoice Orca"
+        return f"{self.NAME}"
 
 
 __all__ = [

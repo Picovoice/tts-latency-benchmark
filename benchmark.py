@@ -47,6 +47,9 @@ class TimingResult:
 
     @classmethod
     def mean_from_results(cls, results: Sequence['TimingResult']) -> 'TimingResult':
+        if len(results) == 0:
+            raise ValueError("Cannot compute mean of empty list")
+
         def _mean(values: Sequence[Any]) -> float:
             return sum(values) / len(values)
 
@@ -54,6 +57,9 @@ class TimingResult:
 
     @classmethod
     def std_from_results(cls, results: Sequence['TimingResult']) -> 'TimingResult':
+        if len(results) == 0:
+            raise ValueError("Cannot compute standard deviation of empty list")
+
         def _std(values):
             mean = sum(values) / len(values)
             return (sum((x - mean) ** 2 for x in values) / len(values)) ** 0.5
@@ -194,7 +200,29 @@ def get_synthesizer_init_kwargs(args: argparse.Namespace) -> Dict[str, str]:
         kwargs["model_path"] = args.orca_model_path
         kwargs["library_path"] = args.orca_library_path
 
-    elif synthesizer_type is Synthesizers.OPENAI:
+    elif synthesizer_type is Synthesizers.AZURE_TTS:
+        if args.azure_speech_key is None or args.azure_speech_region is None:
+            raise ValueError(
+                "Azure speech key and region are required when using Azure TTS. "
+                "Specify with `--azure-speech-key` and `--azure-speech-region`.")
+        kwargs['speech_key'] = args.azure_speech_key
+        kwargs['speech_region'] = args.azure_speech_region
+
+    elif synthesizer_type is Synthesizers.AMAZON_POLLY:
+        if args.aws_profile_name is None:
+            raise ValueError(
+                "AWS profile name is required when using AWS Polly. Specify with `--aws-profile-name`.")
+        kwargs["aws_profile_name"] = args.aws_profile_name
+
+    elif synthesizer_type is Synthesizers.IBM_WATSON_TTS:
+        if args.ibm_watson_api_key is None or args.ibm_watson_service_url is None:
+            raise ValueError(
+                "IBM Watson API key and service URL are required when using IBM Watson TTS. "
+                "Specify with `--ibm-watson-api-key` and `--ibm-watson-service-url`.")
+        kwargs["api_key"] = args.ibm_watson_api_key
+        kwargs["service_url"] = args.ibm_watson_service_url
+
+    elif synthesizer_type is Synthesizers.OPENAI_TTS:
         if args.openai_access_key is None:
             raise ValueError(
                 f"An OpenAI access key is required when using OpenAI models. Specify with `--openai-access-key`.")
@@ -320,6 +348,29 @@ if __name__ == "__main__":
         "--orca-library-path",
         default=None,
         help="Path to Orca's dynamic library")
+
+    parser.add_argument(
+        "--aws-profile-name",
+        default=None,
+        help="AWS profile name to use for AWS Polly")
+
+    parser.add_argument(
+        "--azure-speech-key",
+        default=None,
+        help="Azure access token")
+    parser.add_argument(
+        "--azure-speech-region",
+        default=None,
+        help="Azure speech location")
+
+    parser.add_argument(
+        "--ibm-watson-api-key",
+        default=None,
+        help="IBM Watson API key")
+    parser.add_argument(
+        "--ibm-watson-service-url",
+        default=None,
+        help="IBM Watson service URL")
 
     parser.add_argument(
         "--num-interactions",

@@ -28,6 +28,9 @@ class Timer:
         if self.time_first_synthesis_request == -1.0:
             self.time_first_synthesis_request = self._get_time()
 
+    def log_time_first_synthesis_request(self) -> None:
+        self.time_first_synthesis_request = self._get_time()
+
     def log_time_last_llm_token(self) -> None:
         self.time_last_llm_token = self._get_time()
 
