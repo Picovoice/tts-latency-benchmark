@@ -279,6 +279,7 @@ def main(args: argparse.Namespace) -> None:
             print(f"llm request -> first token: {timer.num_seconds_to_first_token():.2f}")
             print(f"first token -> first audio: {timer.num_seconds_to_first_audio():.2f}")
             print(f"tts request -> first audio: {timer.num_seconds_tts_request_first_audio():.2f}")
+            print(f"llm generation: {timer.num_seconds_llm_generation():.2f}")
             print(f"Total delay (TTFB - time to first byte): {timer.num_seconds_total_delay():.2f}")
             timer.wait_for_last_audio()
             audio_path = os.path.join(results_folder, f"audio_{counter}.wav")

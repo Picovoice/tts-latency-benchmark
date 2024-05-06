@@ -148,8 +148,8 @@ class AzureSynthesizer(Synthesizer):
 
     VOICE_NAME = "en-CA-ClaraNeural"
 
-    SAMPLE_RATE = 16000
-    AUDIO_ENCODING = AudioEncodings.BYTES
+    SAMPLE_RATE = 24000
+    AUDIO_ENCODING = AudioEncodings.MP3
 
     def __init__(
             self,
@@ -164,12 +164,10 @@ class AzureSynthesizer(Synthesizer):
             **kwargs)
 
         speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=speech_region)
-
         speech_config.speech_synthesis_voice_name = self.VOICE_NAME
+        speech_config.set_speech_synthesis_output_format(
+            speechsdk.SpeechSynthesisOutputFormat.Audio24Khz48KBitRateMonoMp3)
 
-        # stream_callback = self.PushAudioOutputStreamSampleCallback(audio_sink=self._audio_sink, timer=self._timer)
-        # push_stream = speechsdk.audio.PushAudioOutputStream(stream_callback)
-        # stream_config = speechsdk.audio.AudioOutputConfig(stream=push_stream)
         self._synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=None)
 
     def synthesize(self, text_stream: Generator[str, None, None]) -> None:
@@ -179,24 +177,18 @@ class AzureSynthesizer(Synthesizer):
 
         self._timer.log_time_first_synthesis_request()
 
-        # result = self._synthesizer.start_speaking_text_async(text).get()
-        result = self._synthesizer.speak_text_async(text).get()
+        result = self._synthesizer.start_speaking_text_async(text).get()
+        buffer = bytes(self.SAMPLE_RATE)
+        stream = speechsdk.AudioDataStream(result)
 
-        if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
-            self._timer.log_time_last_audio()
-        elif result.reason == speechsdk.ResultReason.Canceled:
-            cancellation_details = result.cancellation_details
-            print(f"Speech synthesis canceled, check speech_key and service_region: {result.reason}")
-            print(f"Cancellation details: {cancellation_details}")
-            print(f"Text: {text}")
-            if cancellation_details.reason == speechsdk.CancellationReason.Error:
-                print("Error details: {}".format(cancellation_details.error_details))
-        else:
-            print(f"Speech synthesis not complete, status: {result.reason}")
-            print(f"Result: {result}")
+        num_reads = stream.read_data(buffer)
+        while num_reads > 0:
+            self._timer.maybe_log_time_first_audio()
+            buffer = bytes(self.SAMPLE_RATE)
+            self._audio_sink.add(data=buffer)
+            num_reads = stream.read_data(buffer)
 
-        import code
-        code.interact(local=locals())
+        self._timer.log_time_last_audio()
 
     def __str__(self) -> str:
         return f"{self.NAME}"

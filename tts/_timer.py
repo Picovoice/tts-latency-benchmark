@@ -53,6 +53,9 @@ class Timer:
     def num_seconds_tts_request_first_audio(self) -> float:
         return self.time_first_audio - self.time_first_synthesis_request
 
+    def num_seconds_llm_generation(self) -> float:
+        return self.time_first_llm_token - self.time_last_llm_token
+
     def num_seconds_total_delay(self) -> float:
         return self.num_seconds_to_first_audio() + self.num_seconds_to_first_token()
 
