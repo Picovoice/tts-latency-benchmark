@@ -53,24 +53,23 @@ def _plot_time_first_audio(
             synthesizer, mean, std = Stats.load_results(json_path)
             results.append((synthesizer, mean, std))
 
-    results = sorted(results, key=lambda x: x[1].num_seconds_total_delay, reverse=True)
+    results = sorted(results, key=lambda x: x[1].total_delay_seconds, reverse=True)
 
     print("RESULTS\n")
     max_delay = 0
     for synthesizer, mean, std in results:
-        print(f"TTS: {synthesizer.value}")
-        print(f"Total delay: {mean.num_seconds_total_delay:.2f} +- {std.num_seconds_total_delay:.2f} seconds")
-        print(f"LLM delay: {mean.num_seconds_first_token:.2f} +- {std.num_seconds_first_token:.2f} seconds")
-        print(f"TTS delay: {mean.num_seconds_first_audio:.2f} +- {std.num_seconds_first_audio:.2f} seconds\n")
-        max_delay = max(max_delay, mean.num_seconds_total_delay)
+        print(
+            f"TTS: {synthesizer.value}")
+        print(
+            f"Total delay: {mean.total_delay_seconds:.2f} +- {std.total_delay_seconds:.2f} seconds")
+        print(
+            f"Delay caused by LLM: {mean.first_token_delay_seconds:.2f} +- {std.first_token_delay_seconds:.2f} seconds")
+        print(
+            f"Delay caused by TTS: {mean.first_audio_delay_seconds:.2f} +- "
+            f"{std.first_audio_delay_seconds:.2f} seconds\n")
+        max_delay = max(max_delay, mean.total_delay_seconds)
 
     fig, ax = plt.subplots(figsize=(12, 6))
-
-    # for i, (synthesizer, mean, std) in enumerate(results):
-    #     rounded_result = round(1000 * mean.num_seconds_total_delay, -1)
-    #     color = ENGINE_COLORS[synthesizer]
-    #     ax.bar([i], [rounded_result], 0.4, color=color)
-    #     ax.text(i - 0.04, rounded_result + 100, f'{rounded_result:.0f} ms', color=color, fontsize=12)
 
     def round_result(value: float) -> float:
         return round(1000 * value, -1)
@@ -79,25 +78,26 @@ def _plot_time_first_audio(
     colors = []
     bottoms = []
     for synthesizer, mean, std in results:
-        rounded_result = round_result(mean.num_seconds_first_token)
+        rounded_result = round_result(mean.first_token_delay_seconds)
         rounded_results.append(rounded_result)
         colors.append(ENGINE_COLORS[synthesizer])
         bottoms.append(rounded_result)
-    ax.bar(range(len(results)), rounded_results, 0.4, color=colors, label="LLM delay")
+    ax.bar(range(len(results)), rounded_results, 0.4, color=colors, label="Delay caused by LLM")
 
     rounded_results = []
     colors = []
     for i, (synthesizer, mean, std) in enumerate(results):
-        rounded_results.append(round_result(mean.num_seconds_first_audio))
+        rounded_results.append(round_result(mean.first_audio_delay_seconds))
         colors.append(ENGINE_COLORS[synthesizer])
-    ax.bar(range(len(results)), rounded_results, 0.4, color=colors, bottom=bottoms, alpha=0.6, label="TTS delay")
+    ax.bar(
+        range(len(results)), rounded_results, 0.4, color=colors, bottom=bottoms, alpha=0.6, label="Delay caused by TTS")
 
     total_delays = []
     total_delays_std = []
     for i, (synthesizer, mean, std) in enumerate(results):
-        rounded_result = round_result(mean.num_seconds_total_delay)
+        rounded_result = round_result(mean.total_delay_seconds)
         total_delays.append(rounded_result)
-        total_delays_std.append(round_result(std.num_seconds_total_delay))
+        total_delays_std.append(round_result(std.total_delay_seconds))
         color = ENGINE_COLORS[synthesizer]
         x_offset = 0.08 if show_error_bars else -0.04
         ax.text(i + x_offset, rounded_result + 100, f'{rounded_result:.0f} ms', color=color, fontsize=12)
@@ -119,7 +119,7 @@ def _plot_time_first_audio(
     plt.xticks(np.arange(0, len(Synthesizers)), [ENGINE_PRINT_NAMES[x[0]] for x in results], fontsize=12)
     y_arange = np.arange(0, 1000 * (max_delay + (max_delay / 5)), 500)
     plt.yticks(y_arange, [f"{x:.0f}" for x in y_arange])
-    plt.ylabel('Time to first audio (ms)', fontsize=14)
+    plt.ylabel('Time to first audio-byte / ms', fontsize=14)
 
     ax.legend(loc="upper right", fontsize=14, reverse=True)
 

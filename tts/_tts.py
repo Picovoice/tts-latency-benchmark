@@ -24,9 +24,9 @@ class Synthesizers(Enum):
     AZURE_TTS = "azure_tts"
     AMAZON_POLLY = "amazon_polly"
     ELEVENLABS = "elevenlabs"
-    PICOVOICE_ORCA = "picovoice_orca"
-    OPENAI_TTS = "openai_tts"
     IBM_WATSON_TTS = "ibm_watson_tts"
+    OPENAI_TTS = "openai_tts"
+    PICOVOICE_ORCA = "picovoice_orca"
 
 
 class Synthesizer:
@@ -86,22 +86,23 @@ class Synthesizer:
         raise NotImplementedError()
 
 
-# https://elevenlabs.io/docs/api-reference/websockets
 class ElevenLabsSynthesizer(Synthesizer):
     NAME = "ElevenLabs"
 
     SAMPLE_RATE = 24000
     AUDIO_ENCODING = AudioEncodings.BYTES
 
-    VOICE_ID = "shimmer"
+    VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
     MODEL_ID = "eleven_turbo_v2"
     URL_TEMPLATE = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
     CHUNK_SIZE = 1024
 
-    def __init__(self, access_key: str, **kwargs: Any) -> None:
+    def __init__(self, api_key: str, **kwargs: Any) -> None:
         super().__init__(sample_rate=self.SAMPLE_RATE, audio_encoding=self.AUDIO_ENCODING, **kwargs)
 
-        self._headers = {"Content-Type": "application/json"}
+        self._headers = {
+            "xi-api-key": api_key,
+            "Content-Type": "application/json"}
         self._url = self.URL_TEMPLATE.format(voice_id=self.VOICE_ID)
 
     def _build_payload(self, text: str) -> Dict[str, Any]:
@@ -109,12 +110,11 @@ class ElevenLabsSynthesizer(Synthesizer):
             "text": text,
             "model_id": self.MODEL_ID,
             "voice_settings": {
-                "stability": 123,
-                "similarity_boost": 123,
-                "style": 123,
-                "use_speaker_boost": True,
+                "stability": 0.5,
+                "similarity_boost": 0.8,
+                "use_speaker_boost": False,
             },
-            "seed": 123,
+            "seed": 77777,
         }
 
     def synthesize(self, text_stream: Generator[str, None, None]) -> None:
@@ -129,7 +129,7 @@ class ElevenLabsSynthesizer(Synthesizer):
             json=payload,
             headers=self._headers,
             params={
-                "optimize_streaming_latency": 3,
+                "optimize_streaming_latency": "3",
                 "output_format": "pcm_24000"}
         )
 
@@ -145,7 +145,6 @@ class ElevenLabsSynthesizer(Synthesizer):
 
 class IBMWatsonSynthesizer(Synthesizer):
     NAME = "IBM Watson TTS"
-
     SAMPLE_RATE = 22050
     AUDIO_ENCODING = AudioEncodings.BYTES
 
@@ -185,7 +184,6 @@ class AzureSynthesizer(Synthesizer):
     NAME = "Azure TTS"
 
     VOICE_NAME = "en-CA-ClaraNeural"
-
     SAMPLE_RATE = 24000
     AUDIO_ENCODING = AudioEncodings.BYTES
 
@@ -195,6 +193,7 @@ class AzureSynthesizer(Synthesizer):
             speech_region: str,
             **kwargs: Any
     ) -> None:
+        # noinspection PyPackageRequirements
         import azure.cognitiveservices.speech as speechsdk
         super().__init__(sample_rate=self.SAMPLE_RATE, audio_encoding=self.AUDIO_ENCODING, **kwargs)
 
@@ -205,6 +204,7 @@ class AzureSynthesizer(Synthesizer):
         self._synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=None)
 
     def synthesize(self, text_stream: Generator[str, None, None]) -> None:
+        # noinspection PyPackageRequirements
         import azure.cognitiveservices.speech as speechsdk
 
         text = self._read_text_stream(text_stream)
@@ -230,8 +230,8 @@ class AzureSynthesizer(Synthesizer):
 
 class AmazonSynthesizer(Synthesizer):
     NAME = "Amazon Polly"
-    VOICE = "Joanna"
 
+    VOICE = "Joanna"
     SAMPLE_RATE = 22050
 
     def __init__(self, aws_profile_name: str, **kwargs: Any) -> None:
@@ -271,9 +271,9 @@ class AmazonSynthesizer(Synthesizer):
 
 class OpenAISynthesizer(Synthesizer):
     NAME = "OpenAI TTS"
+
     DEFAULT_MODEL_NAME = "tts-1"
     DEFAULT_VOICE_NAME = "shimmer"
-
     SAMPLE_RATE = 24000
     AUDIO_ENCODING = AudioEncodings.BYTES
 

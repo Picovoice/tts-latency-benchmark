@@ -13,7 +13,7 @@ class LLM:
     SYSTEM_MESSAGE = """
     You are a helpful voice assistant. Users ask questions from different domains such as: 
     flights, food-ordering, hotels, movies, music, restaurant-search, sports.
-    Give useful answers in a conversational style.     
+    Give useful answers in a conversational style.
     """
 
     def __init__(self, system_message: str = SYSTEM_MESSAGE) -> None:
