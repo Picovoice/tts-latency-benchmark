@@ -5,12 +5,14 @@ from enum import Enum
 from queue import Queue
 from typing import (
     Any,
+    Dict,
     Generator,
     Literal,
     Optional,
 )
 
 import pvorca
+import requests
 from openai import OpenAI
 from pvorca import OrcaActivationLimitError
 
@@ -88,18 +90,54 @@ class Synthesizer:
 class ElevenLabsSynthesizer(Synthesizer):
     NAME = "ElevenLabs"
 
-    SAMPLE_RATE = 22050
-    AUDIO_ENCODING = AudioEncodings.BASE64
+    SAMPLE_RATE = 24000
+    AUDIO_ENCODING = AudioEncodings.BYTES
 
-    def __init__(
-            self,
-            access_key: str,
-            **kwargs: Any
-    ) -> None:
-        super().__init__(sample_rate=self.SAMPLE_RATE, **kwargs)
+    VOICE_ID = "shimmer"
+    MODEL_ID = "eleven_turbo_v2"
+    URL_TEMPLATE = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
+    CHUNK_SIZE = 1024
+
+    def __init__(self, access_key: str, **kwargs: Any) -> None:
+        super().__init__(sample_rate=self.SAMPLE_RATE, audio_encoding=self.AUDIO_ENCODING, **kwargs)
+
+        self._headers = {"Content-Type": "application/json"}
+        self._url = self.URL_TEMPLATE.format(voice_id=self.VOICE_ID)
+
+    def _build_payload(self, text: str) -> Dict[str, Any]:
+        return {
+            "text": text,
+            "model_id": self.MODEL_ID,
+            "voice_settings": {
+                "stability": 123,
+                "similarity_boost": 123,
+                "style": 123,
+                "use_speaker_boost": True,
+            },
+            "seed": 123,
+        }
 
     def synthesize(self, text_stream: Generator[str, None, None]) -> None:
-        raise NotImplementedError()
+
+        payload = self._build_payload(text=self._read_text_stream(text_stream))
+
+        self._timer.log_time_first_synthesis_request()
+
+        response = requests.request(
+            "POST",
+            self._url,
+            json=payload,
+            headers=self._headers,
+            params={
+                "optimize_streaming_latency": 3,
+                "output_format": "pcm_24000"}
+        )
+
+        for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
+            self._timer.maybe_log_time_first_audio()
+            self._audio_sink.add(data=chunk)
+
+        self._timer.log_time_last_audio()
 
     def __str__(self) -> str:
         return f"{self.NAME}"
@@ -126,12 +164,12 @@ class IBMWatsonSynthesizer(Synthesizer):
         self._text_to_speech.set_service_url(service_url)
 
     def synthesize(self, text_stream: Generator[str, None, None]) -> None:
-
         text = self._read_text_stream(text_stream)
 
         self._timer.log_time_first_synthesis_request()
 
         result = self._text_to_speech.synthesize(text, accept='audio/wav').get_result()
+
         import code
         code.interact(local=locals())
 
@@ -158,10 +196,7 @@ class AzureSynthesizer(Synthesizer):
             **kwargs: Any
     ) -> None:
         import azure.cognitiveservices.speech as speechsdk
-        super().__init__(
-            sample_rate=self.SAMPLE_RATE,
-            audio_encoding=self.AUDIO_ENCODING,
-            **kwargs)
+        super().__init__(sample_rate=self.SAMPLE_RATE, audio_encoding=self.AUDIO_ENCODING, **kwargs)
 
         speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=speech_region)
         speech_config.speech_synthesis_voice_name = self.VOICE_NAME
@@ -243,6 +278,8 @@ class OpenAISynthesizer(Synthesizer):
     SAMPLE_RATE = 24000
     AUDIO_ENCODING = AudioEncodings.BYTES
 
+    CHUNK_SIZE = 1024
+
     def __init__(
             self,
             access_key: str,
@@ -270,12 +307,9 @@ class OpenAISynthesizer(Synthesizer):
             response_format="pcm",
             input=text)
 
-        for data in response.iter_bytes(chunk_size=1024):
+        for data in response.iter_bytes(chunk_size=self.CHUNK_SIZE):
             self._timer.maybe_log_time_first_audio()
-            if self._audio_sink is not None:
-                self._audio_sink.add(data=data)
-            else:
-                break
+            self._audio_sink.add(data=data)
         self._timer.log_time_last_audio()
 
     def __str__(self) -> str:
@@ -341,8 +375,7 @@ class PicovoiceOrcaSynthesizer(Synthesizer):
 
             if pcm is not None:
                 self._timer.maybe_log_time_first_audio()
-                if self._audio_sink is not None:
-                    self._audio_sink.add(data=pcm)
+                self._audio_sink.add(data=pcm)
 
     def synthesize(self, text_stream: Generator[str, None, None]) -> None:
         for token in text_stream:
