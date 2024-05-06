@@ -10,7 +10,6 @@ import soundfile
 
 class AudioEncodings(Enum):
     BYTES = "bytes"
-    BASE64 = "base64"
     INT16 = "int16"
     MP3 = "mp3"
 
@@ -29,14 +28,10 @@ class AudioSink:
             self._audio = np.concatenate((self._audio, self._decode_chunk(data)))
 
     def _decode_chunk(self, data: Any) -> Optional[NDArray]:
-        if self._encoding is AudioEncodings.BASE64:
-            raise NotImplementedError("TEST THIS FIRST!")
-            # return np.frombuffer(base64.b64decode(data), dtype=np.int16)
-        elif self._encoding is AudioEncodings.INT16:
+        if self._encoding is AudioEncodings.INT16:
             return np.array(data, dtype=np.int16)
         elif self._encoding is AudioEncodings.BYTES:
-            chunk = np.frombuffer(BytesIO(data).read(), dtype=np.int16)
-            return chunk
+            return np.frombuffer(BytesIO(data).read(), dtype=np.int16)
         elif self._encoding is AudioEncodings.MP3:
             raise ValueError("Cannot decode chunks of MP3 data")
         else:

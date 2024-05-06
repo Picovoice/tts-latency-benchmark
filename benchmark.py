@@ -145,7 +145,7 @@ class Stats:
         print("Results saved to:", self._output_folder)
 
     @staticmethod
-    def load_results(json_path: str) -> Tuple[Synthesizers, TimingResult, TimingResult]:
+    def load_results(json_path: str, scale: float = 1.0) -> Tuple[Synthesizers, TimingResult, TimingResult]:
         tts_type_string = None
         for synthesizer in Synthesizers:
             if synthesizer.value in json_path:
@@ -157,17 +157,17 @@ class Stats:
             results_dict = json.load(f)
 
         mean = TimingResult(
-            total_delay_seconds=results_dict["mean_total_delay"],
-            first_token_delay_seconds=results_dict["mean_llm_delay"],
-            first_audio_delay_seconds=results_dict["mean_tts_delay"],
-            num_words=results_dict["mean_words_per_sentence"],
-            num_tokens_per_second=results_dict["mean_tokens_per_second"])
+            total_delay_seconds=results_dict["mean_total_delay"] * scale,
+            first_token_delay_seconds=results_dict["mean_llm_delay"] * scale,
+            first_audio_delay_seconds=results_dict["mean_tts_delay"] * scale,
+            num_words=results_dict["mean_words_per_sentence"] * scale,
+            num_tokens_per_second=results_dict["mean_tokens_per_second"] * scale)
         std = TimingResult(
-            total_delay_seconds=results_dict["std_total_delay"],
-            first_token_delay_seconds=results_dict["std_llm_delay"],
-            first_audio_delay_seconds=results_dict["std_tts_delay"],
-            num_words=results_dict["std_words_per_sentence"],
-            num_tokens_per_second=results_dict["std_tokens_per_second"])
+            total_delay_seconds=results_dict["std_total_delay"] * scale,
+            first_token_delay_seconds=results_dict["std_llm_delay"] * scale,
+            first_audio_delay_seconds=results_dict["std_tts_delay"] * scale,
+            num_words=results_dict["std_words_per_sentence"] * scale,
+            num_tokens_per_second=results_dict["std_tokens_per_second"] * scale)
 
         return Synthesizers(tts_type_string), mean, std
 
@@ -212,7 +212,7 @@ def get_synthesizer_init_kwargs(args: argparse.Namespace) -> Dict[str, str]:
                 "AWS profile name is required when using AWS Polly. Specify with `--aws-profile-name`.")
         kwargs["aws_profile_name"] = args.aws_profile_name
 
-    elif synthesizer_type is Synthesizers.ELEVENLABS:
+    elif synthesizer_type is Synthesizers.ELEVENLABS or synthesizer_type is Synthesizers.ELEVENLABS_WEBSOCKET:
         if args.elevenlabs_api_key is None:
             raise ValueError(
                 "Elevenlabs API key is required when using Elevenlabs TTS. Specify with `--elevenlabs-api-key`.")

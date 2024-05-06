@@ -1,4 +1,3 @@
-import json
 import threading
 from contextlib import closing
 from dataclasses import dataclass
@@ -7,7 +6,6 @@ from queue import Queue
 from typing import (
     Any,
     Dict,
-    Iterator,
     Generator,
     Literal,
     Optional,
@@ -197,6 +195,8 @@ class IBMWatsonSynthesizer(Synthesizer):
     SAMPLE_RATE = 22050
     AUDIO_ENCODING = AudioEncodings.BYTES
 
+    CHUNK_SIZE = 10 * 1024
+
     def __init__(
             self,
             api_key: str,
@@ -216,12 +216,11 @@ class IBMWatsonSynthesizer(Synthesizer):
 
         self._timer.log_time_first_synthesis_request()
 
-        result = self._text_to_speech.synthesize(text, accept='audio/wav').get_result()
+        response = self._text_to_speech.synthesize(text, accept=f"audio/l16;rate={self.sample_rate}")
 
-        import code
-        code.interact(local=locals())
-
-        self._timer.maybe_log_time_first_audio()
+        for chunk in response.get_result().iter_content(chunk_size=self.CHUNK_SIZE):
+            self._timer.maybe_log_time_first_audio()
+            self._audio_sink.add(data=chunk)
 
         self._timer.log_time_last_audio()
 
@@ -235,6 +234,8 @@ class AzureSynthesizer(Synthesizer):
     VOICE_NAME = "en-CA-ClaraNeural"
     SAMPLE_RATE = 24000
     AUDIO_ENCODING = AudioEncodings.BYTES
+
+    CHUNK_SIZE = 10 * 1024
 
     def __init__(
             self,
@@ -261,14 +262,14 @@ class AzureSynthesizer(Synthesizer):
         self._timer.log_time_first_synthesis_request()
 
         result = self._synthesizer.start_speaking_text_async(text).get()
-        buffer = bytes(self.SAMPLE_RATE)
+        buffer = bytes(self.CHUNK_SIZE)
         stream = speechsdk.AudioDataStream(result)
 
         num_reads = stream.read_data(buffer)
         while num_reads > 0:
             self._timer.maybe_log_time_first_audio()
             self._audio_sink.add(data=buffer)
-            buffer = bytes(self.SAMPLE_RATE)
+            buffer = bytes(self.CHUNK_SIZE)
             num_reads = stream.read_data(buffer)
 
         self._timer.log_time_last_audio()
@@ -282,7 +283,7 @@ class AmazonSynthesizer(Synthesizer):
 
     VOICE = "Joanna"
     SAMPLE_RATE = 22050
-    CHUNK_SIZE = 1024
+    CHUNK_SIZE = 10 * 1024
 
     def __init__(self, aws_profile_name: str, **kwargs: Any) -> None:
         super().__init__(
@@ -329,7 +330,7 @@ class OpenAISynthesizer(Synthesizer):
     SAMPLE_RATE = 24000
     AUDIO_ENCODING = AudioEncodings.BYTES
 
-    CHUNK_SIZE = 1024
+    CHUNK_SIZE = 10 * 1024
 
     def __init__(
             self,
