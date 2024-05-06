@@ -31,11 +31,15 @@ WHITE = rgb_from_hex("#FFFFFF")
 BLUE = rgb_from_hex("#377DFF")
 
 ENGINE_PRINT_NAMES = {
+    Synthesizers.AMAZON_POLLY: 'Amazon Polly',
+    Synthesizers.AZURE_TTS: 'Azure TTS',
     Synthesizers.OPENAI_TTS: 'OpenAI TTS',
     Synthesizers.PICOVOICE_ORCA: 'Picovoice\nOrca',
 }
 
 ENGINE_COLORS = {
+    Synthesizers.AMAZON_POLLY: GREY2,
+    Synthesizers.AZURE_TTS: GREY3,
     Synthesizers.OPENAI_TTS: GREY1,
     Synthesizers.PICOVOICE_ORCA: BLUE,
 }
@@ -50,10 +54,11 @@ def _plot_time_first_audio(
     for file in os.listdir(save_folder):
         if file.endswith(".json"):
             json_path = os.path.join(save_folder, file)
-            synthesizer, mean, std = Stats.load_results(json_path)
+            synthesizer, mean, std = Stats.load_results(json_path, scale=1000)
             results.append((synthesizer, mean, std))
+    num_results = len(results)
 
-    results = sorted(results, key=lambda x: x[1].total_delay_seconds, reverse=True)
+    results = sorted(results, key=lambda x: x[1].total_delay_seconds, reverse=False)
 
     print("RESULTS\n")
     max_delay = 0
@@ -72,7 +77,7 @@ def _plot_time_first_audio(
     fig, ax = plt.subplots(figsize=(12, 6))
 
     def round_result(value: float) -> float:
-        return round(1000 * value, -1)
+        return round(value, -1)
 
     rounded_results = []
     colors = []
@@ -82,7 +87,12 @@ def _plot_time_first_audio(
         rounded_results.append(rounded_result)
         colors.append(ENGINE_COLORS[synthesizer])
         bottoms.append(rounded_result)
-    ax.bar(range(len(results)), rounded_results, 0.4, color=colors, label="Delay caused by LLM")
+    ax.bar(
+        list(range(num_results))[::-1],
+        rounded_results[::-1],
+        0.4,
+        color=colors[::-1],
+        label="Delay caused by LLM")
 
     rounded_results = []
     colors = []
@@ -90,7 +100,13 @@ def _plot_time_first_audio(
         rounded_results.append(round_result(mean.first_audio_delay_seconds))
         colors.append(ENGINE_COLORS[synthesizer])
     ax.bar(
-        range(len(results)), rounded_results, 0.4, color=colors, bottom=bottoms, alpha=0.6, label="Delay caused by TTS")
+        list(range(num_results))[::-1],
+        rounded_results[::-1],
+        0.4,
+        color=colors[::-1],
+        bottom=bottoms[::-1],
+        alpha=0.7,
+        label="Delay caused by TTS")
 
     total_delays = []
     total_delays_std = []
@@ -99,12 +115,16 @@ def _plot_time_first_audio(
         total_delays.append(rounded_result)
         total_delays_std.append(round_result(std.total_delay_seconds))
         color = ENGINE_COLORS[synthesizer]
-        x_offset = 0.08 if show_error_bars else -0.04
-        ax.text(i + x_offset, rounded_result + 100, f'{rounded_result:.0f} ms', color=color, fontsize=12)
+        x_offset = 0.08 if show_error_bars else -0.11
+        ax.text(
+            i + x_offset, rounded_result + 100,
+            f'{rounded_result:.0f} ms',
+            color=color,
+            fontsize=12)
 
     if show_error_bars:
         plt.errorbar(
-            range(len(results)),
+            range(num_results),
             total_delays,
             total_delays_std,
             fmt='.',
@@ -116,12 +136,12 @@ def _plot_time_first_audio(
         if spine.spine_type != 'bottom' and spine.spine_type != 'left':
             spine.set_visible(False)
 
-    plt.xticks(np.arange(0, len(Synthesizers)), [ENGINE_PRINT_NAMES[x[0]] for x in results], fontsize=12)
-    y_arange = np.arange(0, 1000 * (max_delay + (max_delay / 5)), 500)
+    plt.xticks(np.arange(0, len(rounded_results)), [ENGINE_PRINT_NAMES[x[0]] for x in results], fontsize=12)
+    y_arange = np.arange(0, (max_delay + (max_delay / 5)), 500)
     plt.yticks(y_arange, [f"{x:.0f}" for x in y_arange])
-    plt.ylabel('Time to first audio-byte / ms', fontsize=14)
+    plt.ylabel('Average Time to first audio-byte (ms)', fontsize=14)
 
-    ax.legend(loc="upper right", fontsize=14, reverse=True)
+    ax.legend(loc="upper left", reverse=True, fontsize=14)
 
     plot_path = os.path.join(save_folder, "time_to_first_audio.png")
     if show_error_bars:
@@ -138,7 +158,10 @@ def _plot_time_first_audio(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--results-folder", default=DEFAULT_RESULTS_FOLDER, help="Path to results folder")
+    parser.add_argument(
+        "--results-folder",
+        default=DEFAULT_RESULTS_FOLDER,
+        help="Path to results folder")
     parser.add_argument("--show-errors", action="store_true")
     parser.add_argument("--show", action="store_true")
     args = parser.parse_args()

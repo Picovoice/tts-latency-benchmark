@@ -1,3 +1,4 @@
+import json
 import threading
 from contextlib import closing
 from dataclasses import dataclass
@@ -6,6 +7,7 @@ from queue import Queue
 from typing import (
     Any,
     Dict,
+    Iterator,
     Generator,
     Literal,
     Optional,
@@ -24,6 +26,7 @@ class Synthesizers(Enum):
     AZURE_TTS = "azure_tts"
     AMAZON_POLLY = "amazon_polly"
     ELEVENLABS = "elevenlabs"
+    ELEVENLABS_WEBSOCKET = "elevenlabs_websocket"
     IBM_WATSON_TTS = "ibm_watson_tts"
     OPENAI_TTS = "openai_tts"
     PICOVOICE_ORCA = "picovoice_orca"
@@ -72,6 +75,7 @@ class Synthesizer:
             Synthesizers.AMAZON_POLLY: AmazonSynthesizer,
             Synthesizers.AZURE_TTS: AzureSynthesizer,
             Synthesizers.ELEVENLABS: ElevenLabsSynthesizer,
+            Synthesizers.ELEVENLABS_WEBSOCKET: ElevenLabsWebSocketSynthesizer,
             Synthesizers.IBM_WATSON_TTS: IBMWatsonSynthesizer,
             Synthesizers.OPENAI_TTS: OpenAISynthesizer,
             Synthesizers.PICOVOICE_ORCA: PicovoiceOrcaSynthesizer,
@@ -89,7 +93,7 @@ class Synthesizer:
 class ElevenLabsSynthesizer(Synthesizer):
     NAME = "ElevenLabs"
 
-    SAMPLE_RATE = 24000
+    SAMPLE_RATE = 22050
     AUDIO_ENCODING = AudioEncodings.BYTES
 
     VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
@@ -118,7 +122,6 @@ class ElevenLabsSynthesizer(Synthesizer):
         }
 
     def synthesize(self, text_stream: Generator[str, None, None]) -> None:
-
         payload = self._build_payload(text=self._read_text_stream(text_stream))
 
         self._timer.log_time_first_synthesis_request()
@@ -130,12 +133,58 @@ class ElevenLabsSynthesizer(Synthesizer):
             headers=self._headers,
             params={
                 "optimize_streaming_latency": "3",
-                "output_format": "pcm_24000"}
+                "output_format": "pcm_22500"}
         )
 
         for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
             self._timer.maybe_log_time_first_audio()
             self._audio_sink.add(data=chunk)
+
+        self._timer.log_time_last_audio()
+
+    def __str__(self) -> str:
+        return f"{self.NAME}"
+
+
+class ElevenLabsWebSocketSynthesizer(Synthesizer):
+    NAME = "ElevenLabs WebSocket"
+
+    SAMPLE_RATE = 24000
+    AUDIO_ENCODING = AudioEncodings.BYTES
+
+    VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
+    MODEL_ID = "eleven_turbo_v2"
+
+    def __init__(self, api_key: str, **kwargs: Any) -> None:
+        from elevenlabs.client import ElevenLabs
+        super().__init__(sample_rate=self.SAMPLE_RATE, audio_encoding=self.AUDIO_ENCODING, **kwargs)
+
+        self._client = ElevenLabs(api_key=api_key)
+
+    def synthesize(self, text_stream: Generator[str, None, None]) -> None:
+        from elevenlabs import VoiceSettings
+
+        def text_stream_wrapper() -> Generator[str, None, None]:
+            for token in text_stream:
+                if token is None:
+                    continue
+                self._timer.maybe_log_time_first_llm_token()
+                yield token
+
+        audio_stream = self._client.text_to_speech.convert_realtime(
+            voice_id=self.VOICE_ID,
+            text=text_stream_wrapper(),
+            model_id=self.MODEL_ID,
+            voice_settings=VoiceSettings(
+                stability=0.5,
+                similarity_boost=0.8,
+                use_speaker_boost=True,
+            ),
+        )
+
+        for b in audio_stream:
+            self._timer.maybe_log_time_first_audio()
+            self._audio_sink.add(data=b)
 
         self._timer.log_time_last_audio()
 
@@ -233,6 +282,7 @@ class AmazonSynthesizer(Synthesizer):
 
     VOICE = "Joanna"
     SAMPLE_RATE = 22050
+    CHUNK_SIZE = 1024
 
     def __init__(self, aws_profile_name: str, **kwargs: Any) -> None:
         super().__init__(
@@ -257,9 +307,11 @@ class AmazonSynthesizer(Synthesizer):
 
         if "AudioStream" in response:
             with closing(response["AudioStream"]) as stream:
-                data = stream.read()
-                self._timer.maybe_log_time_first_audio()
-                self._audio_sink.add(data=data)
+                data = stream.read(self.CHUNK_SIZE)
+                while len(data) > 0:
+                    self._timer.maybe_log_time_first_audio()
+                    self._audio_sink.add(data=data)
+                    data = stream.read(self.CHUNK_SIZE)
         else:
             raise ValueError(f"Failed to synthesize text: `{text}`")
 
