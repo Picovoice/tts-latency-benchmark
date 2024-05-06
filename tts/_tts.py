@@ -187,7 +187,7 @@ class AzureSynthesizer(Synthesizer):
     VOICE_NAME = "en-CA-ClaraNeural"
 
     SAMPLE_RATE = 24000
-    AUDIO_ENCODING = AudioEncodings.MP3
+    AUDIO_ENCODING = AudioEncodings.BYTES
 
     def __init__(
             self,
@@ -200,8 +200,7 @@ class AzureSynthesizer(Synthesizer):
 
         speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=speech_region)
         speech_config.speech_synthesis_voice_name = self.VOICE_NAME
-        speech_config.set_speech_synthesis_output_format(
-            speechsdk.SpeechSynthesisOutputFormat.Audio24Khz48KBitRateMonoMp3)
+        speech_config.set_speech_synthesis_output_format(speechsdk.SpeechSynthesisOutputFormat.Raw24Khz16BitMonoPcm)
 
         self._synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=None)
 
@@ -219,8 +218,8 @@ class AzureSynthesizer(Synthesizer):
         num_reads = stream.read_data(buffer)
         while num_reads > 0:
             self._timer.maybe_log_time_first_audio()
-            buffer = bytes(self.SAMPLE_RATE)
             self._audio_sink.add(data=buffer)
+            buffer = bytes(self.SAMPLE_RATE)
             num_reads = stream.read_data(buffer)
 
         self._timer.log_time_last_audio()
