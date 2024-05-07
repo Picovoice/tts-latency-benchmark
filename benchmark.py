@@ -169,14 +169,16 @@ class Stats:
             total_delay_seconds=results_dict["mean_total_delay"] * scale,
             first_token_delay_seconds=results_dict["mean_llm_delay"] * scale,
             first_audio_delay_seconds=results_dict["mean_tts_delay"] * scale,
-            tts_process_seconds=results_dict["mean_process_seconds"] * scale,
+            tts_process_seconds=results_dict[
+                                    "mean_process_seconds"] * scale if "mean_process_seconds" in results_dict else 0.0,
             num_words=results_dict["mean_words_per_sentence"] * scale,
             num_tokens_per_second=results_dict["mean_tokens_per_second"] * scale)
         std = TimingResult(
             total_delay_seconds=results_dict["std_total_delay"] * scale,
             first_token_delay_seconds=results_dict["std_llm_delay"] * scale,
             first_audio_delay_seconds=results_dict["std_tts_delay"] * scale,
-            tts_process_seconds=results_dict["std_process_seconds"] * scale,
+            tts_process_seconds=results_dict[
+                                    "std_process_seconds"] * scale if "std_process_seconds" in results_dict else 0.0,
             num_words=results_dict["std_words_per_sentence"] * scale,
             num_tokens_per_second=results_dict["std_tokens_per_second"] * scale)
 

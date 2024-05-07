@@ -28,8 +28,9 @@ class Timer:
         if self._time_first_synthesis_request == -1.0:
             self._time_first_synthesis_request = self._get_time()
 
-    def set_time_first_synthesis_request(self, seconds: float) -> None:
-        self._time_first_synthesis_request = seconds
+    def maybe_set_time_first_synthesis_request(self, seconds: float) -> None:
+        if self._time_first_synthesis_request == -1.0:
+            self._time_first_synthesis_request = seconds
 
     def log_time_first_synthesis_request(self) -> None:
         self._time_first_synthesis_request = self._get_time()
