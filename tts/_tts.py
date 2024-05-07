@@ -149,7 +149,7 @@ class ElevenLabsWebSocketSynthesizer(Synthesizer):
     NAME = "ElevenLabs WebSocket"
 
     SAMPLE_RATE = 24000
-    AUDIO_ENCODING = AudioEncodings.BYTES
+    AUDIO_ENCODING = AudioEncodings.MP3
 
     VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
     MODEL_ID = "eleven_turbo_v2"
@@ -168,7 +168,9 @@ class ElevenLabsWebSocketSynthesizer(Synthesizer):
                 if token is None:
                     continue
                 self._timer.maybe_log_time_first_llm_token()
+                self._timer.maybe_log_time_first_synthesis_request()
                 yield token
+            self._timer.log_time_last_llm_token()
 
         audio_stream = self._client.text_to_speech.convert_realtime(
             voice_id=self.VOICE_ID,
@@ -181,9 +183,9 @@ class ElevenLabsWebSocketSynthesizer(Synthesizer):
             ),
         )
 
-        for b in audio_stream:
+        for chunk in audio_stream:
             self._timer.maybe_log_time_first_audio()
-            self._audio_sink.add(data=b)
+            self._audio_sink.add(data=chunk)
 
         self._timer.log_time_last_audio()
 
@@ -416,7 +418,7 @@ class PicovoiceOrcaSynthesizer(Synthesizer):
                 self._timer.log_time_last_audio()
                 break
 
-            time_before_proc = time.time()
+            time_before_proc = time.perf_counter()
             try:
                 if not orca_input.flush:
                     pcm = self._orca_stream.synthesize(orca_input.text)

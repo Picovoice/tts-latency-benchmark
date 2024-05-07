@@ -46,3 +46,4 @@ class AudioSink:
 
     def reset(self) -> None:
         self._audio = np.array([])
+        self._buffer = BytesIO()

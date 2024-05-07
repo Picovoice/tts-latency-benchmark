@@ -49,7 +49,7 @@ ENGINE_COLORS = {
 }
 
 
-def _plot_time_first_audio(
+def _plot(
         save_folder: str,
         show: bool = False,
         show_error_bars: bool = True,
@@ -78,12 +78,12 @@ def _plot_time_first_audio(
         print(
             f"TTS: {synthesizer.value}")
         print(
-            f"Total delay: {mean.total_delay_seconds:.2f} +- {std.total_delay_seconds:.2f} seconds")
+            f"Total delay: {mean.total_delay_seconds:.2f} +- {std.total_delay_seconds:.2f} ms")
         print(
-            f"Delay caused by LLM: {mean.first_token_delay_seconds:.2f} +- {std.first_token_delay_seconds:.2f} seconds")
+            f"Delay caused by LLM: {mean.first_token_delay_seconds:.2f} +- {std.first_token_delay_seconds:.2f} ms")
         print(
             f"Delay caused by TTS: {mean.first_audio_delay_seconds:.2f} +- "
-            f"{std.first_audio_delay_seconds:.2f} seconds\n")
+            f"{std.first_audio_delay_seconds:.2f} ms\n")
         max_delay = \
             max(max_delay, mean.total_delay_seconds) if not only_tts else max(max_delay, mean.first_audio_delay_seconds)
 
@@ -195,7 +195,7 @@ def main() -> None:
 
     save_folder = os.path.join(args.results_folder, f"llm_{DEFAULT_LLM}")
 
-    _plot_time_first_audio(
+    _plot(
         save_folder=save_folder,
         show=args.show,
         show_error_bars=args.show_errors,
