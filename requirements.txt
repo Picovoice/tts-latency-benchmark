@@ -9,5 +9,6 @@ openai
 pvorca==0.2.0
 requests
 soundfile
+tqdm
 urllib3<2  # for compatibility with aws
 websockets

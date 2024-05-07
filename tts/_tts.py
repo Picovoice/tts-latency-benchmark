@@ -1,4 +1,5 @@
 import threading
+import time
 from contextlib import closing
 from dataclasses import dataclass
 from enum import Enum
@@ -417,6 +418,7 @@ class PicovoiceOrcaSynthesizer(Synthesizer):
 
             self._timer.maybe_log_time_first_synthesis_request()
 
+            time_before_proc = time.time()
             try:
                 if not orca_input.flush:
                     pcm = self._orca_stream.synthesize(orca_input.text)
@@ -426,6 +428,7 @@ class PicovoiceOrcaSynthesizer(Synthesizer):
                 raise ValueError("Orca activation limit reached.")
 
             if pcm is not None:
+                self._timer.set_time_first_synthesis_request(seconds=time_before_proc)
                 self._timer.maybe_log_time_first_audio()
                 self._audio_sink.add(data=pcm)
 

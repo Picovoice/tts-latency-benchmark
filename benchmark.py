@@ -32,6 +32,7 @@ class TimingResult:
     first_token_delay_seconds: float
     first_audio_delay_seconds: float
     total_delay_seconds: float
+    tts_process_seconds: float
     num_words: int
     num_tokens_per_second: float
 
@@ -41,6 +42,7 @@ class TimingResult:
             total_delay_seconds=fn([r.total_delay_seconds for r in results]),
             first_token_delay_seconds=fn([r.first_token_delay_seconds for r in results]),
             first_audio_delay_seconds=fn([r.first_audio_delay_seconds for r in results]),
+            tts_process_seconds=fn([r.tts_process_seconds for r in results]),
             num_words=int(fn([r.num_words for r in results])),
             num_tokens_per_second=fn([r.num_tokens_per_second for r in results]),
         )
@@ -49,7 +51,7 @@ class TimingResult:
     def mean_from_results(cls, results: Sequence['TimingResult']) -> 'TimingResult':
         if len(results) == 0:
             print("WARNING: Cannot compute mean of empty list")
-            return TimingResult(0, 0, 0, 0, 0)
+            return TimingResult(0, 0, 0, 0, 0, 0)
 
         def _mean(values: Sequence[Any]) -> float:
             return sum(values) / len(values)
@@ -60,7 +62,7 @@ class TimingResult:
     def std_from_results(cls, results: Sequence['TimingResult']) -> 'TimingResult':
         if len(results) == 0:
             print("WARNING: Cannot compute standard deviation of empty list")
-            return TimingResult(0, 0, 0, 0, 0)
+            return TimingResult(0, 0, 0, 0, 0, 0)
 
         def _std(values):
             mean = sum(values) / len(values)
@@ -107,10 +109,11 @@ class Stats:
         print(f"Mean total audio delay: {mean.total_delay_seconds:.2f} +- {std.first_audio_delay_seconds:.2f} s")
         print(f"Mean delay LLM: {mean.first_token_delay_seconds:.2f} +- {std.first_token_delay_seconds:.2f} s")
         print(f"Mean delay TTS: {mean.first_audio_delay_seconds:.2f} +- {std.first_audio_delay_seconds:.2f} s")
+        print(f"TTS processing time: {mean.tts_process_seconds:.2f} +- {std.tts_process_seconds:.2f} s")
         print(f"Mean number of words per sentence: {mean.num_words:.1f} +- {std.num_words:.1f}")
         print(f"Mean tokens per second: {mean.num_tokens_per_second:.2f} +- {std.num_tokens_per_second:.2f}")
 
-        fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+        fig, axs = plt.subplots(3, 2, figsize=(14, 8))
         axs[0, 0].hist([r.total_delay_seconds for r in self._results], bins=10)
         axs[0, 0].set_title('total_delay_seconds')
         axs[0, 1].hist([r.first_token_delay_seconds for r in self._results], bins=10)
@@ -120,6 +123,10 @@ class Stats:
         axs[1, 0].set_title('first_audio_delay_seconds')
         axs[1, 1].hist([r.num_words for r in self._results], bins=10)
         axs[1, 1].set_title('num_words')
+        axs[2, 0].hist([r.num_tokens_per_second for r in self._results], bins=10)
+        axs[2, 0].set_title('num_tokens_per_second')
+        axs[2, 1].hist([r.tts_process_seconds for r in self._results], bins=10)
+        axs[2, 1].set_title('tts_process_seconds')
 
         output_path = os.path.join(self._output_folder, f"hists_tts_{self._tts_type_string}.png")
         plt.savefig(output_path)
@@ -131,11 +138,13 @@ class Stats:
             "mean_total_delay": mean.total_delay_seconds,
             "mean_llm_delay": mean.first_token_delay_seconds,
             "mean_tts_delay": mean.first_audio_delay_seconds,
+            "mean_process_seconds": mean.tts_process_seconds,
             "mean_words_per_sentence": mean.num_words,
             "mean_tokens_per_second": mean.num_tokens_per_second,
             "std_total_delay": std.total_delay_seconds,
             "std_llm_delay": std.first_token_delay_seconds,
             "std_tts_delay": std.first_audio_delay_seconds,
+            "std_process_seconds": std.tts_process_seconds,
             "std_words_per_sentence": std.num_words,
             "std_tokens_per_second": std.num_tokens_per_second,
         }
@@ -160,12 +169,14 @@ class Stats:
             total_delay_seconds=results_dict["mean_total_delay"] * scale,
             first_token_delay_seconds=results_dict["mean_llm_delay"] * scale,
             first_audio_delay_seconds=results_dict["mean_tts_delay"] * scale,
+            tts_process_seconds=results_dict["mean_process_seconds"] * scale,
             num_words=results_dict["mean_words_per_sentence"] * scale,
             num_tokens_per_second=results_dict["mean_tokens_per_second"] * scale)
         std = TimingResult(
             total_delay_seconds=results_dict["std_total_delay"] * scale,
             first_token_delay_seconds=results_dict["std_llm_delay"] * scale,
             first_audio_delay_seconds=results_dict["std_tts_delay"] * scale,
+            tts_process_seconds=results_dict["std_process_seconds"] * scale,
             num_words=results_dict["std_words_per_sentence"] * scale,
             num_tokens_per_second=results_dict["std_tokens_per_second"] * scale)
 
@@ -273,6 +284,7 @@ def main(args: argparse.Namespace) -> None:
             total_delay_seconds=timer.total_delay_seconds(),
             first_token_delay_seconds=timer.first_token_delay_seconds(),
             first_audio_delay_seconds=timer.first_audio_delay_seconds(),
+            tts_process_seconds=timer.tts_process_seconds(),
             num_words=len(llm.last_response.split()),
             num_tokens_per_second=timer.num_tokens_per_second())
         stats.accumulate(timing_result=timing_result)
@@ -280,11 +292,11 @@ def main(args: argparse.Namespace) -> None:
         if DEBUG:
             print(f"Input: {sentence}")
             print(f"Answer: {llm.last_response}")
-            print(f"llm request -> first token: {timer.first_token_delay_seconds():.2f}")
-            print(f"first token -> first audio: {timer.first_audio_delay_seconds():.2f}")
-            print(f"tts request -> first audio: {timer.tts_request_to_first_audio_seconds():.2f}")
+            print(f"llm request -> first token: {timing_result.first_token_delay_seconds:.2f}")
+            print(f"first token -> first audio: {timing_result.first_audio_delay_seconds:.2f}")
+            print(f"tts request -> first audio: {timing_result.tts_process_seconds:.2f}")
             print(f"llm generation: {timer.llm_text_generation_seconds():.2f}")
-            print(f"Total delay (TTFB - time to first byte): {timer.total_delay_seconds():.2f}")
+            print(f"Total delay (TTFB - time to first byte): {timing_result.total_delay_seconds:.2f}")
             timer.wait_for_last_audio()
             audio_path = os.path.join(results_folder, f"audio_{counter}.wav")
             synthesizer.save_and_reset_last_audio(audio_path)

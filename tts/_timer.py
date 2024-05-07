@@ -28,6 +28,9 @@ class Timer:
         if self._time_first_synthesis_request == -1.0:
             self._time_first_synthesis_request = self._get_time()
 
+    def set_time_first_synthesis_request(self, seconds: float) -> None:
+        self._time_first_synthesis_request = seconds
+
     def log_time_first_synthesis_request(self) -> None:
         self._time_first_synthesis_request = self._get_time()
 
@@ -50,7 +53,7 @@ class Timer:
     def first_token_delay_seconds(self) -> float:
         return self._time_first_llm_token - self._time_llm_request
 
-    def tts_request_to_first_audio_seconds(self) -> float:
+    def tts_process_seconds(self) -> float:
         return self._time_first_audio - self._time_first_synthesis_request
 
     def llm_text_generation_seconds(self) -> float:
