@@ -97,7 +97,7 @@ class ElevenLabsSynthesizer(Synthesizer):
     VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
     MODEL_ID = "eleven_turbo_v2"
     URL_TEMPLATE = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
-    CHUNK_SIZE = 1024
+    CHUNK_SIZE = 10 * 1024
 
     def __init__(self, api_key: str, **kwargs: Any) -> None:
         super().__init__(sample_rate=self.SAMPLE_RATE, audio_encoding=self.AUDIO_ENCODING, **kwargs)
