@@ -163,11 +163,11 @@ def _plot(
     plt.xticks(np.arange(0, len(rounded_results)), [ENGINE_PRINT_NAMES[x[0]] for x in results], fontsize=12)
     y_arange = np.arange(0, y_max, 500)
     plt.yticks(y_arange, [f"{x:.0f}" for x in y_arange])
-    metric = "Assistant Response Time" if not only_tts else "First Token to Speech"
+    metric = "Voice Assistant Response Time" if not only_tts else "First Token to Speech"
     plt.ylabel(f"{metric} (ms)", fontsize=14)
 
     if (not only_tts or show_error_bars) and not no_breakdown:
-        ax.legend(loc="upper left", reverse=True, fontsize=14)
+        ax.legend(loc="upper left", reverse=False, fontsize=14)
 
     if show_error_bars:
         output_path = output_path.replace(".png", "_error_bars.png")
@@ -196,7 +196,7 @@ def main() -> None:
 
     _plot(
         results_folder=args.results_folder,
-        output_path=os.path.join(DEFAULT_PLOTS_FOLDER, "assistant_response_time.png"),
+        output_path=os.path.join(DEFAULT_PLOTS_FOLDER, "voice_assistant_response_time.png"),
         show=args.show,
         show_error_bars=args.show_errors,
         only_tts=False,
@@ -204,7 +204,7 @@ def main() -> None:
     )
     _plot(
         results_folder=args.results_folder,
-        output_path=os.path.join(DEFAULT_PLOTS_FOLDER, "time_to_first_audio.png"),
+        output_path=os.path.join(DEFAULT_PLOTS_FOLDER, "first_token_to_speech.png"),
         show=args.show,
         show_error_bars=args.show_errors,
         only_tts=True,
