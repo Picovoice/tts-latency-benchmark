@@ -109,7 +109,7 @@ def _plot(
             rounded_results,
             0.4,
             color=colors,
-            label="Time to First Token")
+            label="Time to First Token (using OpenAI's gpt-3.5-turbo)")
     else:
         bottoms = [0 for _ in range(num_results)]
 
