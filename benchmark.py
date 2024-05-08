@@ -345,7 +345,7 @@ if __name__ == "__main__":
         help="Open AI API key. Needed when using openai models")
 
     parser.add_argument(
-        "--tts",
+        "--engine",
         dest="synthesizer",
         default=Synthesizers.PICOVOICE_ORCA.value,
         choices=[s.value for s in Synthesizers],

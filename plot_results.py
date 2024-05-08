@@ -107,7 +107,7 @@ def _plot(
         ax.bar(
             range(num_results),
             rounded_results,
-            0.4,
+            0.5,
             color=colors,
             label="Time to First Token (using OpenAI's gpt-3.5-turbo)")
     else:
@@ -121,7 +121,7 @@ def _plot(
     ax.bar(
         range(num_results),
         rounded_results,
-        0.4,
+        0.5,
         color=colors,
         bottom=bottoms,
         alpha=0.65 if not only_tts and not no_breakdown else 1.0,
@@ -135,12 +135,11 @@ def _plot(
         total_delays.append(rounded_result)
         std_total_delay = std.voice_assistant_response_time if not only_tts else std.first_token_to_speech
         total_delays_std.append(round_result(std_total_delay))
-        color = ENGINE_COLORS[synthesizer]
-        x_offset = 0.02 if show_error_bars else -0.2
+        x_offset = 0.02 if show_error_bars else -0.24
         ax.text(
-            i + x_offset, rounded_result + 60,
+            i + x_offset, rounded_result + 80,
             f'{rounded_result:.0f} ms',
-            color=color,
+            color=BLACK,
             fontsize=12)
 
     if show_error_bars:
@@ -168,7 +167,7 @@ def _plot(
     plt.ylabel(f"{metric} (ms)", fontsize=14)
 
     if (not only_tts or show_error_bars) and not no_breakdown:
-        ax.legend(loc="upper left", reverse=False, fontsize=14)
+        ax.legend(loc="upper left", reverse=False, fontsize=14, framealpha=0)
 
     if show_error_bars:
         output_path = output_path.replace(".png", "_error_bars.png")

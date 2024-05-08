@@ -16,11 +16,12 @@ engines, when used in conjunction with large language models (LLMs) for voice as
 
 ## Overview
 
-This benchmark simulates a voice assistant by using an LLM to generate responses to user queries.
+This benchmark simulates user - voice-assistant interactions, by generating LLM responses to user questions
+and synthesizing the response to speech as soon as possible.
 We sample user queries from a public dataset and feed them to ChatGPT (`gpt-3.5-turbo`)
 using [OpenAI Chat Completion API](https://platform.openai.com/docs/guides/text-generation/chat-completions-api).
-ChatGPT generates responses token-by-token, which are then passed to different text-to-speech (TTS) engines
-to synthesize speech.
+ChatGPT generates responses token-by-token, which are passed to different text-to-speech (TTS) engines
+to compare their response times.
 
 ## Data
 
@@ -28,7 +29,7 @@ The public [taskmaster2](https://huggingface.co/datasets/taskmaster2) dataset co
 conversations between a user and an assistant.
 We randomly select user questions from these example conversations and use them as input to the LLM.
 The topics of the user queries are diverse and include flight booking, food ordering, hotel booking, movies and music
-recommendations, restaurant search, or sports.
+recommendations, restaurant search, and sports.
 The LLM is prompted to answer the questions like a helpful voice assistant to simulate a real-world user - AI
 agent interactions. The responses of the LLM have various lengths, from a few words to a few sentences, to cover a wide
 range of realistic responses.
@@ -46,7 +47,7 @@ We compare the response time for the following Text-to-Speech engines:
 - [Picovoice Orca Streaming Text-to-Speech](https://picovoice.ai/platform/orca/)
 
 All of the above engines support streaming audio output.
-Elevenlabs also supports streaming input using a WebSocket API. 
+Elevenlabs also supports streaming input using a WebSocket API.
 This is done by chunking the text at punctuation marks and sending pre-analyzed text chunks to the engine.
 Orca Streaming Text-to-Speech supports input text streaming without relying on special language markers.
 Orca can handle the raw LLM tokens as soon as they are produced.
@@ -55,7 +56,6 @@ Orca can handle the raw LLM tokens as soon as they are produced.
 
 Response times are typically measured with the `time-to-first-byte` metric, which is the time taken from the moment a
 request was sent until the first byte is received.
-
 In the context of assistants we care about the time it takes for the assistant to respond to the user.
 For LLM-based voice assistants we define:
 
@@ -75,8 +75,8 @@ The `FTTS` metric depends on the capabilities of the TTS engine, and whether it 
 as well as the generation speed of the LLM.
 In order to measure the `FTTS` metric, it is important to keep the LLM behavior constant across all experiments.
 
-We think that the `FTTS` metric is the best way to measure the response time of a TTS engine in the context of voice
-assistants, because it gets closest to the behavior of humans, who can start reading a response as
+We believe the `FTTS` metric is the most appropriate wasy to measure the response time of a TTS engine in the context of
+voice assistants. This is because it gets closest to the behavior of humans, who can start reading a response as
 soon as the first token appears.
 
 Note that for a complete voice assistant application we also need to consider the time it takes for the Speech-to-Text
@@ -84,7 +84,7 @@ system to send the request. Since we can use real-time Speech-to-Text engines li
 Picovoice's [Cheetah Streaming Speech-to-Text](https://picovoice.ai/platform/cheetah/),
 we can assume that the latency introduced by the Speech-to-Text is small compared to the total response time.
 Head over to our GitHub demo
-at [Orca Voice Assistant](https://github.com/Picovoice/orca/tree/main/demo/voice_assistant),
+at [LLM Voice Assistant](https://github.com/Picovoice/orca/tree/main/demo/llm_voice_assistant),
 showcasing a real voice-to-voice conversation with ChatGPT, using different TTS systems.
 
 ## Usage
@@ -107,7 +107,7 @@ Replace `${AWS_PROFILE}` with the name of AWS profile you wish to use.
 ```console
 python3 benchmark.py \
 --openai-api-key ${OPENAI_API_KEY}
---tts amazon_polly \
+--engine amazon_polly \
 --aws-profile-name ${AWS_PROFILE}
 ```
 
@@ -118,7 +118,7 @@ Replace `${AZURE_SPEECH_KEY}` and `${AZURE_SPEECH_LOCATION}` with the informatio
 ```console
 python3 benchmark.py \
 --openai-api-key ${OPENAI_API_KEY}
---tts azure_tts \
+--engine azure_tts \
 --azure-speech-key ${AZURE_SPEECH_KEY}
 --azure-speech-region ${AZURE_SPEECH_LOCATION}
 ```
@@ -132,7 +132,7 @@ Without input streaming:
 ```console
 python3 benchmark.py \
 --openai-api-key ${OPENAI_API_KEY}
---tts elevenlabs \
+--engine elevenlabs \
 --elevenlabs-api-key ${ELEVENLABS_API_KEY}
 ```
 
@@ -141,7 +141,7 @@ With input streaming:
 ```console
 python3 benchmark.py \
 --openai-api-key ${OPENAI_API_KEY}
---tts elevenlabs_websocket \
+--engine elevenlabs_websocket \
 --elevenlabs-api-key ${ELEVENLABS_API_KEY}
 ```
 
@@ -152,7 +152,7 @@ Replace `${OPENAI_API_KEY}` with your OpenAI API key.
 ```console
 python3 benchmark.py \
 --openai-api-key ${OPENAI_API_KEY}
---tts openai_tts \
+--engine openai_tts \
 ```
 
 ### Picovoice Orca Instructions
@@ -162,11 +162,14 @@ Replace `${PV_ACCESS_KEY}` with your Picovoice AccessKey.
 ```console
 python3 benchmark.py \
 --openai-api-key ${OPENAI_API_KEY}
---tts picovoice_orca \
+--engine picovoice_orca \
 --pv-access-key ${PV_ACCESS_KEY}
 ```
 
 ## Results
+
+The figures below show the response times of each engine by calculating the average over roughly 200 example
+interactions.
 
 ### First Token to Speech
 
