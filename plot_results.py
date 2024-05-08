@@ -106,7 +106,7 @@ def _plot(
             rounded_results,
             0.4,
             color=colors,
-            label="Delay caused by LLM")
+            label="Time to First LLM-Token")
     else:
         bottoms = [0 for _ in range(num_results)]
 
@@ -122,7 +122,7 @@ def _plot(
         color=colors,
         bottom=bottoms,
         alpha=0.65 if not only_tts and not no_breakdown else 1.0,
-        label="Delay caused by TTS" if not only_tts else None)
+        label="First LLM-Token to Speech" if not only_tts else None)
 
     total_delays = []
     total_delays_std = []
@@ -161,7 +161,7 @@ def _plot(
     plt.xticks(np.arange(0, len(rounded_results)), [ENGINE_PRINT_NAMES[x[0]] for x in results], fontsize=12)
     y_arange = np.arange(0, y_max, 500)
     plt.yticks(y_arange, [f"{x:.0f}" for x in y_arange])
-    metric = "Average End-to-End Latency" if not only_tts else "First Token to Speech"
+    metric = "Assistant Response Time" if not only_tts else "First Token to Speech"
     plt.ylabel(f"{metric} (ms)", fontsize=14)
 
     if (not only_tts or show_error_bars) and not no_breakdown:
