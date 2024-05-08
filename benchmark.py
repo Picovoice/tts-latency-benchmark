@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import json
 import os
 from dataclasses import dataclass
@@ -23,8 +24,7 @@ from tts import (
 )
 
 DEFAULT_RESULTS_FOLDER = os.path.join(os.path.dirname(__file__), "results")
-DEFAULT_LLM = LLMs.OPENAI.value
-DEBUG = False
+DEFAULT_DATASET = TextDatasets.TASKMASTER2
 
 
 @dataclass
@@ -74,13 +74,12 @@ class TimingResult:
 class Stats:
     MAX_LLM_DELAY_SECONDS = 0.6
 
-    def __init__(self, tts: Synthesizers, llm: LLMs, results_folder: Optional[str] = None) -> None:
+    def __init__(self, tts: Synthesizers, results_folder: Optional[str] = None) -> None:
         self._results = []
 
         self._tts_type_string = tts.value
-        self._llm_type_string = llm.value
 
-        self._output_folder = os.path.join(results_folder or DEFAULT_RESULTS_FOLDER, f"llm_{self._llm_type_string}")
+        self._output_folder = os.path.join(results_folder or DEFAULT_RESULTS_FOLDER)
         os.makedirs(self._output_folder, exist_ok=True)
 
     def accumulate(self, timing_result: TimingResult) -> None:
@@ -185,16 +184,20 @@ class Stats:
         return Synthesizers(tts_type_string), mean, std
 
 
+def get_default_llm_type(tts_type: Synthesizers) -> LLMs:
+    return LLMs.OPENAI if tts_type is not Synthesizers.ELEVENLABS_WEBSOCKET else LLMs.OPENAI_ASYNC
+
+
 def get_llm_init_kwargs(args: argparse.Namespace) -> Dict[str, str]:
     kwargs = dict()
-    llm_type = LLMs(args.llm)
+    llm_type = get_default_llm_type(Synthesizers(args.synthesizer))
 
-    if llm_type is LLMs.OPENAI:
-        if args.openai_access_key is None:
+    if llm_type is LLMs.OPENAI or llm_type is LLMs.OPENAI_ASYNC:
+        if args.openai_api_key is None:
             raise ValueError(
-                f"An OpenAI access key is required when using OpenAI models. Specify with `--openai-access-key`.")
+                f"An OpenAI access key is required when using OpenAI models. Specify with `--openai-api-key`.")
 
-        kwargs["access_key"] = args.openai_access_key
+        kwargs["api_key"] = args.openai_api_key
 
     return kwargs
 
@@ -240,21 +243,64 @@ def get_synthesizer_init_kwargs(args: argparse.Namespace) -> Dict[str, str]:
         kwargs["service_url"] = args.ibm_watson_service_url
 
     elif synthesizer_type is Synthesizers.OPENAI_TTS:
-        if args.openai_access_key is None:
+        if args.openai_api_key is None:
             raise ValueError(
-                f"An OpenAI access key is required when using OpenAI models. Specify with `--openai-access-key`.")
-        kwargs["access_key"] = args.openai_access_key
+                f"An OpenAI access key is required when using OpenAI models. Specify with `--openai-api-key`.")
+        kwargs["api_key"] = args.openai_api_key
 
     return kwargs
 
 
-def main(args: argparse.Namespace) -> None:
-    num_interactions = args.num_interactions
-    llm_type = LLMs(args.llm)
-    tts_type = Synthesizers(args.synthesizer)
-    results_folder = args.results_folder
+async def _run_benchmark_iteration(
+        llm: LLM,
+        synthesizer: Synthesizer,
+        sentence: str,
+        timer: Timer,
+        stats: Stats,
+        results_folder: str,
+        verbose: bool,
+        counter: int) -> None:
+    timer.reset()
 
-    dataset = TextDataset.create(TextDatasets.TASKMASTER2)
+    timer.log_time_llm_request()
+
+    if synthesizer.is_async:
+        await synthesizer.synthesize_async(text_stream=llm.query_async(sentence))
+    else:
+        synthesizer.synthesize(text_stream=llm.query(sentence))
+
+    timer.wait_for_first_audio()
+
+    timing_result = TimingResult(
+        total_delay_seconds=timer.total_delay_seconds(),
+        first_token_delay_seconds=timer.first_token_delay_seconds(),
+        first_audio_delay_seconds=timer.first_audio_delay_seconds(),
+        tts_process_seconds=timer.tts_process_seconds(),
+        num_words=len(llm.last_response.split()),
+        num_tokens_per_second=timer.num_tokens_per_second())
+    stats.accumulate(timing_result=timing_result)
+
+    if verbose:
+        print(f"Question: {sentence}")
+        print(f"LLM response: {llm.last_response}")
+        print(f"End-to-end latency: {timing_result.total_delay_seconds:.2f} s")
+        print(f"LLM latency: {timing_result.first_token_delay_seconds:.2f} s")
+        print(f"TTS latency: {timing_result.first_audio_delay_seconds:.2f} s")
+        timer.wait_for_last_audio()
+        audio_path = os.path.join(results_folder, f"audio_{counter}.wav")
+        synthesizer.save_and_reset_last_audio(audio_path)
+        print(f"Saved audio to `{audio_path}`")
+        print()
+
+
+async def main(args: argparse.Namespace) -> None:
+    num_interactions = args.num_interactions
+    results_folder = args.results_folder
+    verbose = args.verbose
+    tts_type = Synthesizers(args.synthesizer)
+    llm_type = get_default_llm_type(tts_type)
+
+    dataset = TextDataset.create(DEFAULT_DATASET)
 
     timer = Timer()
 
@@ -265,46 +311,24 @@ def main(args: argparse.Namespace) -> None:
         **synthesizer_init_kwargs)
 
     llm_init_kwargs = get_llm_init_kwargs(args)
-    llm = LLM.create(LLMs(args.llm), **llm_init_kwargs)
+    llm = LLM.create(llm_type, **llm_init_kwargs)
 
     benchmark_sentences = dataset.get_random_sentences(num=num_interactions)
 
-    stats = Stats(llm=llm_type, tts=tts_type, results_folder=results_folder)
+    stats = Stats(tts=tts_type, results_folder=results_folder)
 
     counter = 0
     print("Running benchmark ...")
     for sentence in tqdm(benchmark_sentences):
-        timer.reset()
-
-        timer.log_time_llm_request()
-
-        synthesizer.synthesize(text_stream=llm.query(sentence))
-
-        timer.wait_for_first_audio()
-
-        timing_result = TimingResult(
-            total_delay_seconds=timer.total_delay_seconds(),
-            first_token_delay_seconds=timer.first_token_delay_seconds(),
-            first_audio_delay_seconds=timer.first_audio_delay_seconds(),
-            tts_process_seconds=timer.tts_process_seconds(),
-            num_words=len(llm.last_response.split()),
-            num_tokens_per_second=timer.num_tokens_per_second())
-        stats.accumulate(timing_result=timing_result)
-
-        if DEBUG:
-            print(f"Input: {sentence}")
-            print(f"Answer: {llm.last_response}")
-            print(f"llm request -> first token: {timing_result.first_token_delay_seconds:.2f}")
-            print(f"first token -> first audio: {timing_result.first_audio_delay_seconds:.2f}")
-            print(f"tts request -> first audio: {timing_result.tts_process_seconds:.2f}")
-            print(f"llm generation: {timer.llm_text_generation_seconds():.2f}")
-            print(f"Total delay (TTFB - time to first byte): {timing_result.total_delay_seconds:.2f}")
-            timer.wait_for_last_audio()
-            audio_path = os.path.join(results_folder, f"audio_{counter}.wav")
-            synthesizer.save_and_reset_last_audio(audio_path)
-            print(f"Saved audio to `{audio_path}`")
-            print()
-
+        await _run_benchmark_iteration(
+            llm=llm,
+            synthesizer=synthesizer,
+            sentence=sentence,
+            timer=timer,
+            stats=stats,
+            results_folder=results_folder,
+            verbose=verbose,
+            counter=counter)
         counter += 1
 
     stats.save_results()
@@ -316,20 +340,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Text-to-speech streaming synthesis")
 
     parser.add_argument(
-        "--dataset",
-        default=TextDatasets.TASKMASTER2.value,
-        choices=[d.value for d in TextDatasets],
-        help="Choose type of input type")
-
-    parser.add_argument(
-        "--llm",
-        default=DEFAULT_LLM,
-        choices=[llm.value for llm in LLMs],
-        help="Choose LLM to use")
-    parser.add_argument(
-        "--openai-access-key",
-        default=None,
-        help="Open AI access key. Needed when using openai models")
+        "--openai-api-key",
+        required=True,
+        help="Open AI API key. Needed when using openai models")
 
     parser.add_argument(
         "--tts",
@@ -381,11 +394,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num-interactions",
         type=int,
-        default=100,
+        default=200,
         help="Number of interactions to benchmark")
     parser.add_argument(
         "--results-folder",
         default=DEFAULT_RESULTS_FOLDER,
         help="Folder to save results")
 
-    main(parser.parse_args())
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print verbose output")
+
+    asyncio.run(main(parser.parse_args()))

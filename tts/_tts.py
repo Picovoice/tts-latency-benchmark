@@ -1,3 +1,6 @@
+import asyncio
+import base64
+import json
 import threading
 import time
 from contextlib import closing
@@ -8,12 +11,14 @@ from typing import (
     Any,
     Dict,
     Generator,
+    AsyncGenerator,
     Literal,
     Optional,
 )
 
 import pvorca
 import requests
+import websockets
 from openai import OpenAI
 from pvorca import OrcaActivationLimitError
 
@@ -50,6 +55,10 @@ class Synthesizer:
         raise NotImplementedError(
             f"Method `synthesize` must be implemented in a subclass of {self.__class__.__name__}")
 
+    async def synthesize_async(self, text_stream: AsyncGenerator[str, None]) -> None:
+        raise NotImplementedError(
+            f"Method `synthesize` must be implemented in a subclass of {self.__class__.__name__}")
+
     def terminate(self) -> None:
         pass
 
@@ -67,6 +76,10 @@ class Synthesizer:
     def save_and_reset_last_audio(self, path: str) -> None:
         self._audio_sink.save(path)
         self._audio_sink.reset()
+
+    @property
+    def is_async(self) -> bool:
+        return False
 
     @classmethod
     def create(cls, engine: Synthesizers, **kwargs: Any) -> 'Synthesizer':
@@ -148,46 +161,78 @@ class ElevenLabsSynthesizer(Synthesizer):
 class ElevenLabsWebSocketSynthesizer(Synthesizer):
     NAME = "ElevenLabs WebSocket"
 
-    SAMPLE_RATE = 24000
-    AUDIO_ENCODING = AudioEncodings.MP3
+    SAMPLE_RATE = 22050
+    AUDIO_ENCODING = AudioEncodings.BYTES
 
     VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
-    MODEL_ID = "eleven_turbo_v2"
+    URI = \
+        "wss://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream-input?" \
+        "model_id=eleven_turbo_v2&output_format=pcm_22050&optimize_streaming_latency=3"
 
     def __init__(self, api_key: str, **kwargs: Any) -> None:
-        from elevenlabs.client import ElevenLabs
         super().__init__(sample_rate=self.SAMPLE_RATE, audio_encoding=self.AUDIO_ENCODING, **kwargs)
 
-        self._client = ElevenLabs(api_key=api_key)
+        self._api_key = api_key
+        self._uri = self.URI.format(voice_id=self.VOICE_ID)
 
-    def synthesize(self, text_stream: Generator[str, None, None]) -> None:
-        from elevenlabs import VoiceSettings
+    async def _text_chunker(self, text_stream: AsyncGenerator[str, None]) -> AsyncGenerator[str, None]:
+        splitters = (".", ",", "?", "!", ";", ":", "—", "-", "(", ")", "[", "]", "}", " ")
+        buffer = ""
 
-        def text_stream_wrapper() -> Generator[str, None, None]:
-            for token in text_stream:
-                if token is None:
-                    continue
-                self._timer.maybe_log_time_first_llm_token()
+        async for text in text_stream:
+            if text is None:
+                continue
+            self._timer.maybe_log_time_first_llm_token()
+            if buffer.endswith(splitters):
+                yield buffer + " "
+                buffer = text
+            elif text.startswith(splitters):
+                yield buffer + text[0] + " "
+                buffer = text[1:]
+            else:
+                buffer += text
+            self._timer.increment_num_tokens()
+
+        if buffer:
+            yield buffer + " "
+
+    async def synthesize_async(self, text_stream: AsyncGenerator[str, None]) -> None:
+        async with websockets.connect(self._uri) as websocket:
+            await websocket.send(json.dumps({
+                "text": " ",
+                "voice_settings": {"stability": 0.5, "similarity_boost": 0.8},
+                "xi_api_key": self._api_key,
+            }))
+
+            async def consume_audio() -> None:
+                while True:
+                    try:
+                        message = await websocket.recv()
+                        data = json.loads(message)
+                        if data.get("audio"):
+                            self._timer.maybe_log_time_first_audio()
+                            self._audio_sink.add(data=base64.b64decode(data["audio"]))
+                        elif data.get('isFinal'):
+                            break
+                    except websockets.exceptions.ConnectionClosed:
+                        break
+
+            task_consume_audio = asyncio.create_task(consume_audio())
+
+            async for text in self._text_chunker(text_stream=text_stream):
                 self._timer.maybe_log_time_first_synthesis_request()
-                yield token
+                await websocket.send(json.dumps({"text": text, "try_trigger_generation": True}))
+
+            await websocket.send(json.dumps({"text": ""}))
             self._timer.log_time_last_llm_token()
 
-        audio_stream = self._client.text_to_speech.convert_realtime(
-            voice_id=self.VOICE_ID,
-            text=text_stream_wrapper(),
-            model_id=self.MODEL_ID,
-            voice_settings=VoiceSettings(
-                stability=0.5,
-                similarity_boost=0.8,
-                use_speaker_boost=True,
-            ),
-        )
-
-        for chunk in audio_stream:
-            self._timer.maybe_log_time_first_audio()
-            self._audio_sink.add(data=chunk)
+            await task_consume_audio
 
         self._timer.log_time_last_audio()
+
+    @property
+    def is_async(self) -> bool:
+        return True
 
     def __str__(self) -> str:
         return f"{self.NAME}"
@@ -291,7 +336,7 @@ class AmazonSynthesizer(Synthesizer):
     def __init__(self, aws_profile_name: str, **kwargs: Any) -> None:
         super().__init__(
             sample_rate=self.SAMPLE_RATE,
-            audio_encoding=AudioEncodings.MP3,
+            audio_encoding=AudioEncodings.FILE_BUFFER,
             **kwargs)
 
         from boto3 import Session
@@ -337,7 +382,7 @@ class OpenAISynthesizer(Synthesizer):
 
     def __init__(
             self,
-            access_key: str,
+            api_key: str,
             model_name: str = DEFAULT_MODEL_NAME,
             voice_name: Literal["alloy", "echo", "fable", "onyx", "nova", "shimmer"] = DEFAULT_VOICE_NAME,
             **kwargs: Any
@@ -349,7 +394,7 @@ class OpenAISynthesizer(Synthesizer):
 
         self._model_name = model_name
         self._voice_name = voice_name
-        self._client = OpenAI(api_key=access_key)
+        self._client = OpenAI(api_key=api_key)
 
     def synthesize(self, text_stream: Generator[str, None, None]) -> None:
         text = self._read_text_stream(text_stream)

@@ -11,7 +11,7 @@ import soundfile
 class AudioEncodings(Enum):
     BYTES = "bytes"
     INT16 = "int16"
-    MP3 = "mp3"
+    FILE_BUFFER = "mp3"
 
 
 class AudioSink:
@@ -22,7 +22,7 @@ class AudioSink:
         self._buffer = BytesIO()
 
     def add(self, data: Any) -> None:
-        if self._encoding is AudioEncodings.MP3:
+        if self._encoding is AudioEncodings.FILE_BUFFER:
             self._buffer.write(data)
         else:
             self._audio = np.concatenate((self._audio, self._decode_chunk(data)))
@@ -32,13 +32,13 @@ class AudioSink:
             return np.array(data, dtype=np.int16)
         elif self._encoding is AudioEncodings.BYTES:
             return np.frombuffer(BytesIO(data).read(), dtype=np.int16)
-        elif self._encoding is AudioEncodings.MP3:
+        elif self._encoding is AudioEncodings.FILE_BUFFER:
             raise ValueError("Cannot decode chunks of MP3 data")
         else:
             raise ValueError(f"Unsupported encoding: `{self._encoding}`")
 
     def save(self, path: str) -> None:
-        if self._encoding is AudioEncodings.MP3:
+        if self._encoding is AudioEncodings.FILE_BUFFER:
             with open(path, "wb") as f:
                 f.write(self._buffer.getvalue())
         else:

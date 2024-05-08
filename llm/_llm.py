@@ -2,11 +2,13 @@ from enum import Enum
 from typing import (
     Any,
     Generator,
+    AsyncGenerator,
 )
 
 
 class LLMs(Enum):
     OPENAI = "openai"
+    OPENAI_ASYNC = "openai_async"
 
 
 class LLM:
@@ -31,12 +33,26 @@ class LLM:
         raise NotImplementedError(
             f"Method `chat_stream` must be implemented in a subclass of {self.__class__.__name__}")
 
+    def _query_async(self, user_input: str) -> AsyncGenerator[str, None]:
+        raise NotImplementedError(
+            f"Method `chat_stream` must be implemented in a subclass of {self.__class__.__name__}")
+
     def query(self, user_input: str) -> Generator[str, None, None]:
         self._append_user_message(user_input)
         response = ""
         for token in self._query(user_input=user_input):
             yield token
             response += token
+        self._response = response
+        self._reset_history()
+
+    async def query_async(self, user_input: str) -> AsyncGenerator[str, None]:
+        self._append_user_message(user_input)
+        response = ""
+        async for token in self._query_async(user_input=user_input):
+            if token is not None:
+                yield token
+                response += token
         self._response = response
         self._reset_history()
 
@@ -48,6 +64,7 @@ class LLM:
     def create(cls, llm_type: LLMs, **kwargs) -> 'LLM':
         classes = {
             LLMs.OPENAI: OpenAILLM,
+            LLMs.OPENAI_ASYNC: OpenAILLMAsync,
         }
 
         if llm_type not in classes:
@@ -65,7 +82,7 @@ class OpenAILLM(LLM):
 
     def __init__(
             self,
-            access_key: str,
+            api_key: str,
             model_name: str = MODEL_NAME,
             **kwargs: Any,
     ) -> None:
@@ -73,7 +90,7 @@ class OpenAILLM(LLM):
 
         from openai import OpenAI
         self._model_name = model_name
-        self._client = OpenAI(api_key=access_key)
+        self._client = OpenAI(api_key=api_key)
 
     def _query(self, user_input: str) -> Generator[str, None, None]:
         stream = self._client.chat.completions.create(
@@ -85,6 +102,37 @@ class OpenAILLM(LLM):
             token = chunk.choices[0].delta.content
             if token is not None:
                 yield token
+        self._reset_history()
+
+    def __str__(self) -> str:
+        return f"ChatGPT ({self._model_name})"
+
+
+class OpenAILLMAsync(LLM):
+    MODEL_NAME = "gpt-3.5-turbo"
+    RANDOM_SEED = 7777
+
+    def __init__(
+            self,
+            api_key: str,
+            model_name: str = MODEL_NAME,
+            **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        from openai import AsyncOpenAI
+        self._model_name = model_name
+        self._client = AsyncOpenAI(api_key=api_key)
+
+    async def _query_async(self, user_input: str) -> AsyncGenerator[str, None]:
+        stream = await self._client.chat.completions.create(
+            model=self._model_name,
+            messages=self._history,
+            seed=self.RANDOM_SEED,
+            stream=True)
+        async for chunk in stream:
+            token = chunk.choices[0].delta.content
+            yield token
         self._reset_history()
 
     def __str__(self) -> str:

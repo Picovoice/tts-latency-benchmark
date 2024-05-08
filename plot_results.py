@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from benchmark import (
-    DEFAULT_LLM,
     DEFAULT_RESULTS_FOLDER,
     Stats,
 )
@@ -34,7 +33,7 @@ ENGINE_PRINT_NAMES = {
     Synthesizers.AMAZON_POLLY: 'Amazon Polly',
     Synthesizers.AZURE_TTS: 'Azure TTS',
     Synthesizers.ELEVENLABS: 'ElevenLabs',
-    Synthesizers.IBM_WATSON_TTS: 'IBM Watson\nTTS',
+    Synthesizers.ELEVENLABS_WEBSOCKET: 'ElevenLabs\nStreaming Text',
     Synthesizers.OPENAI_TTS: 'OpenAI TTS',
     Synthesizers.PICOVOICE_ORCA: 'Picovoice\nOrca',
 }
@@ -43,8 +42,8 @@ ENGINE_COLORS = {
     Synthesizers.AMAZON_POLLY: GREY1,
     Synthesizers.AZURE_TTS: GREY2,
     Synthesizers.ELEVENLABS: GREY3,
-    Synthesizers.IBM_WATSON_TTS: GREY3,
-    Synthesizers.OPENAI_TTS: GREY3,
+    Synthesizers.ELEVENLABS_WEBSOCKET: GREY3,
+    Synthesizers.OPENAI_TTS: GREY4,
     Synthesizers.PICOVOICE_ORCA: BLUE,
 }
 
@@ -53,15 +52,16 @@ def _plot(
         save_folder: str,
         show: bool = False,
         show_error_bars: bool = True,
-        only_tts: bool = False) -> None:
+        only_tts: bool = False,
+        no_breakdown: bool = False,
+) -> None:
     raw_results = []
     for file in os.listdir(save_folder):
         if file.endswith(".json"):
             json_path = os.path.join(save_folder, file)
             synthesizer, mean, std = Stats.load_results(json_path, scale=1000)
             raw_results.append((synthesizer, mean, std))
-    # filter out ibm watson
-    raw_results = [x for x in raw_results if x[0] is not Synthesizers.IBM_WATSON_TTS]
+    raw_results = [x for x in raw_results if x[0] in ENGINE_PRINT_NAMES.keys()]
 
     results = []
     for synthesizer in list(ENGINE_COLORS.keys()):
@@ -121,7 +121,7 @@ def _plot(
         0.4,
         color=colors,
         bottom=bottoms,
-        alpha=0.65 if not only_tts else 1.0,
+        alpha=0.65 if not only_tts and not no_breakdown else 1.0,
         label="Delay caused by TTS" if not only_tts else None)
 
     total_delays = []
@@ -133,7 +133,7 @@ def _plot(
         std_total_delay = std.total_delay_seconds if not only_tts else std.first_audio_delay_seconds
         total_delays_std.append(round_result(std_total_delay))
         color = ENGINE_COLORS[synthesizer]
-        x_offset = 0.02 if show_error_bars else -0.18
+        x_offset = 0.02 if show_error_bars else -0.2
         ax.text(
             i + x_offset, rounded_result + 60,
             f'{rounded_result:.0f} ms',
@@ -161,10 +161,10 @@ def _plot(
     plt.xticks(np.arange(0, len(rounded_results)), [ENGINE_PRINT_NAMES[x[0]] for x in results], fontsize=12)
     y_arange = np.arange(0, y_max, 500)
     plt.yticks(y_arange, [f"{x:.0f}" for x in y_arange])
-    metric = "Average End-to-End Latency" if not only_tts else "Time Between First LLM-Token and First Audio"
+    metric = "Average End-to-End Latency" if not only_tts else "Time First LLM-Token to Speech"
     plt.ylabel(f"{metric} (ms)", fontsize=14)
 
-    if not only_tts or show_error_bars:
+    if (not only_tts or show_error_bars) and not no_breakdown:
         ax.legend(loc="upper left", reverse=True, fontsize=14)
 
     plot_path = os.path.join(save_folder, "time_to_first_audio.png")
@@ -172,6 +172,8 @@ def _plot(
         plot_path = plot_path.replace(".png", "_error_bars.png")
     if only_tts:
         plot_path = plot_path.replace(".png", "_only_tts.png")
+    if no_breakdown:
+        plot_path = plot_path.replace(".png", "_no_breakdown.png")
     os.makedirs(os.path.dirname(plot_path), exist_ok=True)
     plt.savefig(plot_path)
     print(f"Saved plot to `{plot_path}`")
@@ -191,15 +193,15 @@ def main() -> None:
     parser.add_argument("--show-errors", action="store_true")
     parser.add_argument("--show", action="store_true")
     parser.add_argument("--only-tts", action="store_true")
+    parser.add_argument("--no-breakdown", action="store_true")
     args = parser.parse_args()
 
-    save_folder = os.path.join(args.results_folder, f"llm_{DEFAULT_LLM}")
-
     _plot(
-        save_folder=save_folder,
+        save_folder=args.results_folder,
         show=args.show,
         show_error_bars=args.show_errors,
         only_tts=args.only_tts,
+        no_breakdown=args.no_breakdown,
     )
 
 
