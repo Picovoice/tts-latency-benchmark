@@ -161,7 +161,7 @@ def _plot(
     plt.xticks(np.arange(0, len(rounded_results)), [ENGINE_PRINT_NAMES[x[0]] for x in results], fontsize=12)
     y_arange = np.arange(0, y_max, 500)
     plt.yticks(y_arange, [f"{x:.0f}" for x in y_arange])
-    metric = "Average End-to-End Latency" if not only_tts else "Time First LLM-Token to Speech"
+    metric = "Average End-to-End Latency" if not only_tts else "First Token to Speech"
     plt.ylabel(f"{metric} (ms)", fontsize=14)
 
     if (not only_tts or show_error_bars) and not no_breakdown:
