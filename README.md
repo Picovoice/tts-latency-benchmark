@@ -28,7 +28,7 @@ The public [taskmaster2](https://huggingface.co/datasets/taskmaster2) dataset co
 conversations between a user and an assistant.
 We randomly select user questions from these example conversations and use them as input to the LLM.
 The topics of the user queries are diverse, including flights, food ordering, hotel booking, movies, music,
-restaurant search, or sports. 
+restaurant search, or sports.
 The LLM is prompted to answer the questions like a helpful voice assistant, which simulates a real-world user - AI
 agent interactions.
 
@@ -39,33 +39,37 @@ We compare the delay introduced by the following Text-to-Speech engines:
 - [Amazon Polly](https://aws.amazon.com/polly/)
 - [Azure Text-to-Speech](https://azure.microsoft.com/en-us/services/cognitive-services/text-to-speech/)
 - [ElevenLabs](https://elevenlabs.io/)
+    - With streaming audio output only
+    - With streaming input using [WebSocket API](https://elevenlabs.io/docs/api-reference/websockets)
 - [OpenAI TTS](https://platform.openai.com/docs/guides/text-to-speech)
 - [Picovoice Orca Streaming Text-to-Speech](https://picovoice.ai/platform/orca/)
 
 All of the above engines support streaming audio output.
-Additionally, Orca Streaming Text-to-Speech supports input text streaming. We pass the generated
-LLM tokens to Orca as soon as they are being produced.
+Elevenlabs supports streaming input using a WebSocket API. This is done by chunking the text at punctuation marks and
+sending pre-analyzed text chunks to the engine.
+Orca Streaming Text-to-Speech supports input text streaming without relying on special language markers.
+Orca can handle the raw LLM tokens as soon as they are produced.
 
 ## Metrics
 
 Latency is typically measured with the `time-to-first-byte` metric, which is the time taken from the moment a
 request was sent until the first byte is received.
 
-In the context of voice assistants, the metric we care about is the `end-to-end latency`, which we define as:
+In the context of voice assistants we care about the time it takes for the assistant to respond to the user:
 
-- **End-to-End Latency**: Time taken from the moment the user's request is sent to the LLM, until the TTS engine
-  produces the first byte of audio.
+- **Assistant Response Time**: Time taken from the moment the user's request is sent to the LLM, until the TTS
+  engine produces the first byte of speech.
 
-The `end-to-end latency` is the sum of the `LLM delay` and `TTS delay`:
+The `Assistant Response Time` is the sum of the following components:
 
-- **LLM Delay**: Time taken from the moment the user's request is sent to the LLM, until the LLM produces the first
-  byte of text.
-- **TTS Delay**: Time taken from the moment the LLM produces the first text chunk, until the TTS engine produces the
-  first byte of audio.
+- **Time to First Token (TTFT)**: Time taken from the moment the user's request is sent to the LLM, until the LLM
+  produces the first byte of text.
+- **First Token to Speech (FTTS)**: Time taken from the moment the LLM produces the first text token, 
+  until the TTS engine produces the first byte of speech.
 
-Note that we don't consider the delay caused by the Speech-to-Text system, in a real-world application.
+Note that we don't consider the time it takes for the Speech-to-Text system to send the request.
 Since we can use real-time Speech-to-Text engines like
-Picovoice's [Cheetah Streaming Speech-to-Text](https://picovoice.ai/platform/cheetah/)),
+Picovoice's [Cheetah Streaming Speech-to-Text](https://picovoice.ai/platform/cheetah/),
 we can assume that the latency introduced by the Speech-to-Text system is only a small fraction of the total latency.
 Our GitHub demo at [Orca Voice Assistant](https://github.com/Picovoice/orca/tree/main/demo/voice_assistant)
 showcases a real voice-to-voice conversation with ChatGPT, using different TTS systems.
@@ -139,13 +143,13 @@ python3 benchmark.py \
 
 ## Results
 
-### End-to-end latency
+### First Token to Speech
 
-![](results/plots/end-to-end-latency.png)
+![](results/plots/first_token_to_speech.png)
 
-### TTS Delay
+### Assistant Response Time
 
-![](results/plots/tts-delay.png)
+![](results/plots/assistant_response_time.png)
 
 ### Table of Results
 

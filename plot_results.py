@@ -12,6 +12,7 @@ from benchmark import (
 from tts import Synthesizers
 
 Color = Tuple[float, float, float]
+DEFAULT_PLOTS_FOLDER = os.path.join(os.path.dirname(__file__), "results/plots")
 
 
 def rgb_from_hex(x: str) -> Color:
@@ -49,16 +50,17 @@ ENGINE_COLORS = {
 
 
 def _plot(
-        save_folder: str,
+        results_folder: str,
+        output_path: str,
         show: bool = False,
         show_error_bars: bool = True,
         only_tts: bool = False,
         no_breakdown: bool = False,
 ) -> None:
     raw_results = []
-    for file in os.listdir(save_folder):
+    for file in os.listdir(results_folder):
         if file.endswith(".json"):
-            json_path = os.path.join(save_folder, file)
+            json_path = os.path.join(results_folder, file)
             synthesizer, mean, std = Stats.load_results(json_path, scale=1000)
             raw_results.append((synthesizer, mean, std))
     raw_results = [x for x in raw_results if x[0] in ENGINE_PRINT_NAMES.keys()]
@@ -106,7 +108,7 @@ def _plot(
             rounded_results,
             0.4,
             color=colors,
-            label="Time to First LLM-Token")
+            label="Time to First Token")
     else:
         bottoms = [0 for _ in range(num_results)]
 
@@ -122,7 +124,7 @@ def _plot(
         color=colors,
         bottom=bottoms,
         alpha=0.65 if not only_tts and not no_breakdown else 1.0,
-        label="First LLM-Token to Speech" if not only_tts else None)
+        label="First Token to Speech" if not only_tts else None)
 
     total_delays = []
     total_delays_std = []
@@ -167,16 +169,13 @@ def _plot(
     if (not only_tts or show_error_bars) and not no_breakdown:
         ax.legend(loc="upper left", reverse=True, fontsize=14)
 
-    plot_path = os.path.join(save_folder, "time_to_first_audio.png")
     if show_error_bars:
-        plot_path = plot_path.replace(".png", "_error_bars.png")
-    if only_tts:
-        plot_path = plot_path.replace(".png", "_only_tts.png")
+        output_path = output_path.replace(".png", "_error_bars.png")
     if no_breakdown:
-        plot_path = plot_path.replace(".png", "_no_breakdown.png")
-    os.makedirs(os.path.dirname(plot_path), exist_ok=True)
-    plt.savefig(plot_path)
-    print(f"Saved plot to `{plot_path}`")
+        output_path = output_path.replace(".png", "_no_breakdown.png")
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    plt.savefig(output_path)
+    print(f"Saved plot to `{output_path}`")
 
     if show:
         plt.show()
@@ -192,15 +191,23 @@ def main() -> None:
         help="Path to results folder")
     parser.add_argument("--show-errors", action="store_true")
     parser.add_argument("--show", action="store_true")
-    parser.add_argument("--only-tts", action="store_true")
     parser.add_argument("--no-breakdown", action="store_true")
     args = parser.parse_args()
 
     _plot(
-        save_folder=args.results_folder,
+        results_folder=args.results_folder,
+        output_path=os.path.join(DEFAULT_PLOTS_FOLDER, "assistant_response_time.png"),
         show=args.show,
         show_error_bars=args.show_errors,
-        only_tts=args.only_tts,
+        only_tts=False,
+        no_breakdown=args.no_breakdown,
+    )
+    _plot(
+        results_folder=args.results_folder,
+        output_path=os.path.join(DEFAULT_PLOTS_FOLDER, "time_to_first_audio.png"),
+        show=args.show,
+        show_error_bars=args.show_errors,
+        only_tts=True,
         no_breakdown=args.no_breakdown,
     )
 
