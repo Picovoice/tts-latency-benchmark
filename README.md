@@ -102,11 +102,11 @@ In the following, we provide instructions for running the benchmark for each eng
 
 ### Amazon Polly Instructions
 
-Replace `${AWS_PROFILE}` with the name of AWS profile you wish to use.
+Replace `${AWS_PROFILE}` with the name of the AWS profile you wish to use.
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY}
+--openai-api-key ${OPENAI_API_KEY} \
 --engine amazon_polly \
 --aws-profile-name ${AWS_PROFILE}
 ```
@@ -117,9 +117,9 @@ Replace `${AZURE_SPEECH_KEY}` and `${AZURE_SPEECH_LOCATION}` with the informatio
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY}
+--openai-api-key ${OPENAI_API_KEY} \
 --engine azure_tts \
---azure-speech-key ${AZURE_SPEECH_KEY}
+--azure-speech-key ${AZURE_SPEECH_KEY} \
 --azure-speech-region ${AZURE_SPEECH_LOCATION}
 ```
 
@@ -131,7 +131,7 @@ Without input streaming:
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY}
+--openai-api-key ${OPENAI_API_KEY} \
 --engine elevenlabs \
 --elevenlabs-api-key ${ELEVENLABS_API_KEY}
 ```
@@ -140,7 +140,7 @@ With input streaming:
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY}
+--openai-api-key ${OPENAI_API_KEY} \
 --engine elevenlabs_websocket \
 --elevenlabs-api-key ${ELEVENLABS_API_KEY}
 ```
@@ -151,8 +151,8 @@ Replace `${OPENAI_API_KEY}` with your OpenAI API key.
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY}
---engine openai_tts \
+--openai-api-key ${OPENAI_API_KEY} \
+--engine openai_tts
 ```
 
 ### Picovoice Orca Instructions
@@ -161,7 +161,7 @@ Replace `${PV_ACCESS_KEY}` with your Picovoice AccessKey.
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY}
+--openai-api-key ${OPENAI_API_KEY} \
 --engine picovoice_orca \
 --pv-access-key ${PV_ACCESS_KEY}
 ```
