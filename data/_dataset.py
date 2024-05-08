@@ -17,6 +17,8 @@ class TextDataset:
     def __init__(self) -> None:
         self._sentences = []
 
+        random.seed(777)
+
     def get_random_sentences(self, num: int = 100) -> Sequence[str]:
         return random.sample(self.sentences, num)
 

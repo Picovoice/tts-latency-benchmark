@@ -29,9 +29,9 @@ DEFAULT_DATASET = TextDatasets.TASKMASTER2
 
 @dataclass
 class TimingResult:
-    first_token_delay_seconds: float
-    first_audio_delay_seconds: float
-    total_delay_seconds: float
+    voice_assistant_response_time: float
+    time_to_first_token: float
+    first_token_to_speech: float
     tts_process_seconds: float
     num_words: int
     num_tokens_per_second: float
@@ -39,9 +39,9 @@ class TimingResult:
     @staticmethod
     def _compute_statistics(results: Sequence['TimingResult'], fn: Callable) -> 'TimingResult':
         return TimingResult(
-            total_delay_seconds=fn([r.total_delay_seconds for r in results]),
-            first_token_delay_seconds=fn([r.first_token_delay_seconds for r in results]),
-            first_audio_delay_seconds=fn([r.first_audio_delay_seconds for r in results]),
+            voice_assistant_response_time=fn([r.voice_assistant_response_time for r in results]),
+            time_to_first_token=fn([r.time_to_first_token for r in results]),
+            first_token_to_speech=fn([r.first_token_to_speech for r in results]),
             tts_process_seconds=fn([r.tts_process_seconds for r in results]),
             num_words=int(fn([r.num_words for r in results])),
             num_tokens_per_second=fn([r.num_tokens_per_second for r in results]),
@@ -88,7 +88,7 @@ class Stats:
     def _filter_outliers(self, results: Sequence[TimingResult]) -> Sequence[TimingResult]:
         filtered_results = []
         for result in results:
-            if result.first_token_delay_seconds > self.MAX_LLM_DELAY_SECONDS:
+            if result.time_to_first_token > self.MAX_LLM_DELAY_SECONDS:
                 continue
 
             filtered_results.append(result)
@@ -105,21 +105,23 @@ class Stats:
 
         print("Summary statistics:")
         print(f"Total number of sentences: {num_sentences}")
-        print(f"Mean total audio delay: {mean.total_delay_seconds:.2f} +- {std.first_audio_delay_seconds:.2f} s")
-        print(f"Mean delay LLM: {mean.first_token_delay_seconds:.2f} +- {std.first_token_delay_seconds:.2f} s")
-        print(f"Mean delay TTS: {mean.first_audio_delay_seconds:.2f} +- {std.first_audio_delay_seconds:.2f} s")
+        print(
+            "Voice Assistant Response Time: "
+            f"{mean.voice_assistant_response_time:.2f} +- {std.first_token_to_speech:.2f} s")
+        print(f"Time to First Token: {mean.time_to_first_token:.2f} +- {std.time_to_first_token:.2f} s")
+        print(f"First Token to Speech: {mean.first_token_to_speech:.2f} +- {std.first_token_to_speech:.2f} s")
         print(f"TTS processing time: {mean.tts_process_seconds:.2f} +- {std.tts_process_seconds:.2f} s")
         print(f"Mean number of words per sentence: {mean.num_words:.1f} +- {std.num_words:.1f}")
         print(f"Mean tokens per second: {mean.num_tokens_per_second:.2f} +- {std.num_tokens_per_second:.2f}")
 
         fig, axs = plt.subplots(3, 2, figsize=(14, 8))
-        axs[0, 0].hist([r.total_delay_seconds for r in self._results], bins=10)
-        axs[0, 0].set_title('total_delay_seconds')
-        axs[0, 1].hist([r.first_token_delay_seconds for r in self._results], bins=10)
-        axs[0, 1].set_title('first_token_delay_seconds')
+        axs[0, 0].hist([r.voice_assistant_response_time for r in self._results], bins=10)
+        axs[0, 0].set_title('voice_assistant_response_time')
+        axs[0, 1].hist([r.time_to_first_token for r in self._results], bins=10)
+        axs[0, 1].set_title('time_to_first_token')
         axs[0, 1].axvline(x=self.MAX_LLM_DELAY_SECONDS, color='r', linestyle='--')
-        axs[1, 0].hist([r.first_audio_delay_seconds for r in self._results], bins=10)
-        axs[1, 0].set_title('first_audio_delay_seconds')
+        axs[1, 0].hist([r.first_token_to_speech for r in self._results], bins=10)
+        axs[1, 0].set_title('first_token_to_speech')
         axs[1, 1].hist([r.num_words for r in self._results], bins=10)
         axs[1, 1].set_title('num_words')
         axs[2, 0].hist([r.num_tokens_per_second for r in self._results], bins=10)
@@ -134,18 +136,18 @@ class Stats:
         results_json_path = os.path.join(self._output_folder, f"results_tts_{self._tts_type_string}.json")
         results_dict = {
             "total_sentences": num_sentences,
-            "mean_total_delay": mean.total_delay_seconds,
-            "mean_llm_delay": mean.first_token_delay_seconds,
-            "mean_tts_delay": mean.first_audio_delay_seconds,
-            "mean_process_seconds": mean.tts_process_seconds,
-            "mean_words_per_sentence": mean.num_words,
-            "mean_tokens_per_second": mean.num_tokens_per_second,
-            "std_total_delay": std.total_delay_seconds,
-            "std_llm_delay": std.first_token_delay_seconds,
-            "std_tts_delay": std.first_audio_delay_seconds,
-            "std_process_seconds": std.tts_process_seconds,
-            "std_words_per_sentence": std.num_words,
-            "std_tokens_per_second": std.num_tokens_per_second,
+            "mean_voice_assistant_response_time": mean.voice_assistant_response_time,
+            "mean_time_to_first_token": mean.time_to_first_token,
+            "mean_first_token_to_speech": mean.first_token_to_speech,
+            "mean_tts_process_seconds": mean.tts_process_seconds,
+            "mean_num_words": mean.num_words,
+            "mean_num_tokens_per_second": mean.num_tokens_per_second,
+            "std_voice_assistant_response_time": std.voice_assistant_response_time,
+            "std_time_to_first_token": std.time_to_first_token,
+            "std_first_token_to_speech": std.first_token_to_speech,
+            "std_tts_process_seconds": std.tts_process_seconds,
+            "std_num_words": std.num_words,
+            "std_num_tokens_per_second": std.num_tokens_per_second,
         }
         with open(results_json_path, "w") as f:
             json.dump(results_dict, f, indent=4)
@@ -165,21 +167,19 @@ class Stats:
             results_dict = json.load(f)
 
         mean = TimingResult(
-            total_delay_seconds=results_dict["mean_total_delay"] * scale,
-            first_token_delay_seconds=results_dict["mean_llm_delay"] * scale,
-            first_audio_delay_seconds=results_dict["mean_tts_delay"] * scale,
-            tts_process_seconds=results_dict[
-                                    "mean_process_seconds"] * scale if "mean_process_seconds" in results_dict else 0.0,
-            num_words=results_dict["mean_words_per_sentence"] * scale,
-            num_tokens_per_second=results_dict["mean_tokens_per_second"] * scale)
+            voice_assistant_response_time=results_dict["mean_voice_assistant_response_time"] * scale,
+            time_to_first_token=results_dict["mean_time_to_first_token"] * scale,
+            first_token_to_speech=results_dict["mean_first_token_to_speech"] * scale,
+            tts_process_seconds=results_dict["mean_tts_process_seconds"] * scale,
+            num_words=results_dict["mean_num_words"] * scale,
+            num_tokens_per_second=results_dict["mean_num_tokens_per_second"] * scale)
         std = TimingResult(
-            total_delay_seconds=results_dict["std_total_delay"] * scale,
-            first_token_delay_seconds=results_dict["std_llm_delay"] * scale,
-            first_audio_delay_seconds=results_dict["std_tts_delay"] * scale,
-            tts_process_seconds=results_dict[
-                                    "std_process_seconds"] * scale if "std_process_seconds" in results_dict else 0.0,
-            num_words=results_dict["std_words_per_sentence"] * scale,
-            num_tokens_per_second=results_dict["std_tokens_per_second"] * scale)
+            voice_assistant_response_time=results_dict["std_voice_assistant_response_time"] * scale,
+            time_to_first_token=results_dict["std_time_to_first_token"] * scale,
+            first_token_to_speech=results_dict["std_first_token_to_speech"] * scale,
+            tts_process_seconds=results_dict["std_tts_process_seconds"] * scale,
+            num_words=results_dict["std_num_words"] * scale,
+            num_tokens_per_second=results_dict["std_num_tokens_per_second"] * scale)
 
         return Synthesizers(tts_type_string), mean, std
 
@@ -272,9 +272,9 @@ async def _run_benchmark_iteration(
     timer.wait_for_first_audio()
 
     timing_result = TimingResult(
-        total_delay_seconds=timer.total_delay_seconds(),
-        first_token_delay_seconds=timer.first_token_delay_seconds(),
-        first_audio_delay_seconds=timer.first_audio_delay_seconds(),
+        voice_assistant_response_time=timer.voice_assistant_response_time(),
+        time_to_first_token=timer.time_to_first_token(),
+        first_token_to_speech=timer.first_token_to_speech(),
         tts_process_seconds=timer.tts_process_seconds(),
         num_words=len(llm.last_response.split()),
         num_tokens_per_second=timer.num_tokens_per_second())
@@ -283,9 +283,9 @@ async def _run_benchmark_iteration(
     if verbose:
         print(f"Question: {sentence}")
         print(f"LLM response: {llm.last_response}")
-        print(f"End-to-end latency: {timing_result.total_delay_seconds:.2f} s")
-        print(f"LLM latency: {timing_result.first_token_delay_seconds:.2f} s")
-        print(f"TTS latency: {timing_result.first_audio_delay_seconds:.2f} s")
+        print(f"Voice Assistant Response Time: {timing_result.voice_assistant_response_time:.2f} s")
+        print(f"Time to First Token: {timing_result.time_to_first_token:.2f} s")
+        print(f"First Token to Speech: {timing_result.first_token_to_speech:.2f} s")
         timer.wait_for_last_audio()
         audio_path = os.path.join(results_folder, f"audio_{counter}.wav")
         synthesizer.save_and_reset_last_audio(audio_path)
@@ -337,7 +337,7 @@ async def main(args: argparse.Namespace) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Text-to-speech streaming synthesis")
+    parser = argparse.ArgumentParser()
 
     parser.add_argument(
         "--openai-api-key",

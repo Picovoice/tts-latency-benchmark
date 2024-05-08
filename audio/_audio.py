@@ -11,7 +11,7 @@ import soundfile
 class AudioEncodings(Enum):
     BYTES = "bytes"
     INT16 = "int16"
-    FILE_BUFFER = "mp3"
+    FILE_BUFFER = "file_buffer"
 
 
 class AudioSink:
@@ -33,7 +33,7 @@ class AudioSink:
         elif self._encoding is AudioEncodings.BYTES:
             return np.frombuffer(BytesIO(data).read(), dtype=np.int16)
         elif self._encoding is AudioEncodings.FILE_BUFFER:
-            raise ValueError("Cannot decode chunks of MP3 data")
+            raise ValueError("Cannot decode chunks of data from a file buffer")
         else:
             raise ValueError(f"Unsupported encoding: `{self._encoding}`")
 

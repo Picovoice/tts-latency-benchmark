@@ -107,11 +107,11 @@ class ElevenLabsSynthesizer(Synthesizer):
 
     SAMPLE_RATE = 22050
     AUDIO_ENCODING = AudioEncodings.BYTES
+    CHUNK_SIZE = 10 * 1024
 
     VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
     MODEL_ID = "eleven_turbo_v2"
     URL_TEMPLATE = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream"
-    CHUNK_SIZE = 10 * 1024
 
     def __init__(self, api_key: str, **kwargs: Any) -> None:
         super().__init__(sample_rate=self.SAMPLE_RATE, audio_encoding=self.AUDIO_ENCODING, **kwargs)
@@ -240,9 +240,9 @@ class ElevenLabsWebSocketSynthesizer(Synthesizer):
 
 class IBMWatsonSynthesizer(Synthesizer):
     NAME = "IBM Watson TTS"
+
     SAMPLE_RATE = 22050
     AUDIO_ENCODING = AudioEncodings.BYTES
-
     CHUNK_SIZE = 10 * 1024
 
     def __init__(
@@ -279,11 +279,10 @@ class IBMWatsonSynthesizer(Synthesizer):
 class AzureSynthesizer(Synthesizer):
     NAME = "Azure TTS"
 
-    VOICE_NAME = "en-CA-ClaraNeural"
     SAMPLE_RATE = 24000
-    AUDIO_ENCODING = AudioEncodings.BYTES
-
     CHUNK_SIZE = 10 * 1024
+    AUDIO_ENCODING = AudioEncodings.BYTES
+    VOICE_NAME = "en-CA-ClaraNeural"
 
     def __init__(
             self,
@@ -329,9 +328,9 @@ class AzureSynthesizer(Synthesizer):
 class AmazonSynthesizer(Synthesizer):
     NAME = "Amazon Polly"
 
-    VOICE = "Joanna"
     SAMPLE_RATE = 22050
     CHUNK_SIZE = 10 * 1024
+    VOICE = "Joanna"
 
     def __init__(self, aws_profile_name: str, **kwargs: Any) -> None:
         super().__init__(
@@ -373,12 +372,11 @@ class AmazonSynthesizer(Synthesizer):
 class OpenAISynthesizer(Synthesizer):
     NAME = "OpenAI TTS"
 
-    DEFAULT_MODEL_NAME = "tts-1"
-    DEFAULT_VOICE_NAME = "shimmer"
     SAMPLE_RATE = 24000
     AUDIO_ENCODING = AudioEncodings.BYTES
-
     CHUNK_SIZE = 10 * 1024
+    DEFAULT_MODEL_NAME = "tts-1"
+    DEFAULT_VOICE_NAME = "shimmer"
 
     def __init__(
             self,

@@ -74,20 +74,21 @@ def _plot(
 
     num_results = len(results)
 
-    print("RESULTS\n")
     max_delay = 0
     for synthesizer, mean, std in results:
         print(
             f"TTS: {synthesizer.value}")
         print(
-            f"Total delay: {mean.total_delay_seconds:.2f} +- {std.total_delay_seconds:.2f} ms")
+            "Voice Assistant Response Time: "
+            f"{mean.voice_assistant_response_time:.0f} +- {std.voice_assistant_response_time:.0f} ms")
         print(
-            f"Delay caused by LLM: {mean.first_token_delay_seconds:.2f} +- {std.first_token_delay_seconds:.2f} ms")
+            f"Time to First Token: {mean.time_to_first_token:.0f} +- {std.time_to_first_token:.0f} ms")
         print(
-            f"Delay caused by TTS: {mean.first_audio_delay_seconds:.2f} +- "
-            f"{std.first_audio_delay_seconds:.2f} ms\n")
+            f"First Token to Speech: {mean.first_token_to_speech:.0f} +- "
+            f"{std.first_token_to_speech:.0f} ms\n")
         max_delay = \
-            max(max_delay, mean.total_delay_seconds) if not only_tts else max(max_delay, mean.first_audio_delay_seconds)
+            max(max_delay, mean.voice_assistant_response_time) if not only_tts \
+            else max(max_delay, mean.first_token_to_speech)
 
     fig, ax = plt.subplots(figsize=(12, 6))
 
@@ -99,7 +100,7 @@ def _plot(
         colors = []
         bottoms = []
         for synthesizer, mean, std in results:
-            rounded_result = round_result(mean.first_token_delay_seconds)
+            rounded_result = round_result(mean.time_to_first_token)
             rounded_results.append(rounded_result)
             colors.append(ENGINE_COLORS[synthesizer])
             bottoms.append(rounded_result)
@@ -115,7 +116,7 @@ def _plot(
     rounded_results = []
     colors = []
     for i, (synthesizer, mean, std) in enumerate(results):
-        rounded_results.append(round_result(mean.first_audio_delay_seconds))
+        rounded_results.append(round_result(mean.first_token_to_speech))
         colors.append(ENGINE_COLORS[synthesizer])
     ax.bar(
         range(num_results),
@@ -129,10 +130,10 @@ def _plot(
     total_delays = []
     total_delays_std = []
     for i, (synthesizer, mean, std) in enumerate(results):
-        mean_total_delay = mean.total_delay_seconds if not only_tts else mean.first_audio_delay_seconds
+        mean_total_delay = mean.voice_assistant_response_time if not only_tts else mean.first_token_to_speech
         rounded_result = round_result(mean_total_delay)
         total_delays.append(rounded_result)
-        std_total_delay = std.total_delay_seconds if not only_tts else std.first_audio_delay_seconds
+        std_total_delay = std.voice_assistant_response_time if not only_tts else std.first_token_to_speech
         total_delays_std.append(round_result(std_total_delay))
         color = ENGINE_COLORS[synthesizer]
         x_offset = 0.02 if show_error_bars else -0.2

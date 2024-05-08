@@ -48,10 +48,10 @@ class Timer:
     def increment_num_tokens(self) -> None:
         self._num_tokens += 1
 
-    def first_audio_delay_seconds(self) -> float:
+    def first_token_to_speech(self) -> float:
         return self._time_first_audio - self._time_first_llm_token
 
-    def first_token_delay_seconds(self) -> float:
+    def time_to_first_token(self) -> float:
         return self._time_first_llm_token - self._time_llm_request
 
     def tts_process_seconds(self) -> float:
@@ -60,8 +60,8 @@ class Timer:
     def llm_text_generation_seconds(self) -> float:
         return self._time_last_llm_token - self._time_first_llm_token
 
-    def total_delay_seconds(self) -> float:
-        return self.first_audio_delay_seconds() + self.first_token_delay_seconds()
+    def voice_assistant_response_time(self) -> float:
+        return self.first_token_to_speech() + self.time_to_first_token()
 
     def num_tokens_per_second(self) -> float:
         return self._num_tokens / (self._time_last_llm_token - self._time_first_llm_token)
