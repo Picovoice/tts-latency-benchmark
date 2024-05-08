@@ -127,10 +127,21 @@ python3 benchmark.py \
 
 Replace `${ELEVENLABS_API_KEY}` with your ElevenLabs API key.
 
+Without input streaming:
+
 ```console
 python3 benchmark.py \
 --openai-api-key ${OPENAI_API_KEY}
 --tts elevenlabs \
+--elevenlabs-api-key ${ELEVENLABS_API_KEY}
+```
+
+With input streaming:
+
+```console
+python3 benchmark.py \
+--openai-api-key ${OPENAI_API_KEY}
+--tts elevenlabs_websocket \
 --elevenlabs-api-key ${ELEVENLABS_API_KEY}
 ```
 
