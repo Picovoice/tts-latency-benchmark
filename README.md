@@ -76,7 +76,7 @@ as well as the generation speed of the LLM.
 In order to measure the `FTTS` metric, it is important to keep the LLM behavior constant across all experiments.
 
 We think that the `FTTS` metric is the best way to measure the response time of a TTS engine in the context of voice
-assistants, because it gets closest to the behavior of human assistants, who can start reading the response as
+assistants, because it gets closest to the behavior of humans, who can start reading a response as
 soon as the first token appears.
 
 Note that for a complete voice assistant application we also need to consider the time it takes for the Speech-to-Text
