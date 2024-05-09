@@ -14,10 +14,10 @@ class TextDatasets(Enum):
 
 
 class TextDataset:
-    def __init__(self) -> None:
+    def __init__(self, seed: int = 777) -> None:
         self._sentences = []
 
-        random.seed(777)
+        random.seed(seed)
 
     def get_random_sentences(self, num: int = 100) -> Sequence[str]:
         return random.sample(self.sentences, num)

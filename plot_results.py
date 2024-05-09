@@ -135,10 +135,11 @@ def _plot(
         total_delays.append(rounded_result)
         std_total_delay = std.voice_assistant_response_time if not only_tts else std.first_token_to_speech
         total_delays_std.append(round_result(std_total_delay))
-        x_offset = 0.02 if show_error_bars else -0.24
         ax.text(
-            i + x_offset, rounded_result + 80,
+            i,
+            rounded_result + 80,
             f'{rounded_result:.0f} ms',
+            ha="center",
             color=BLACK,
             fontsize=12)
 

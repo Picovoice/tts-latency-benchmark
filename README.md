@@ -75,7 +75,7 @@ The `FTTS` metric depends on the capabilities of the TTS engine, and whether it 
 as well as the generation speed of the LLM.
 In order to measure the `FTTS` metric, it is important to keep the LLM behavior constant across all experiments.
 
-We believe the `FTTS` metric is the most appropriate wasy to measure the response time of a TTS engine in the context of
+We believe the `FTTS` metric is the most appropriate way to measure the response time of a TTS engine in the context of
 voice assistants. This is because it gets closest to the behavior of humans, who can start reading a response as
 soon as the first token appears.
 
@@ -99,6 +99,8 @@ pip3 install -r requirements.txt
 ```
 
 In the following, we provide instructions for running the benchmark for each engine.
+For each benchmark an OpenAI API key is required to generate responses from the LLM. Replace `${OPENAI_API_KEY}` with
+it in the following instructions.
 
 ### Amazon Polly Instructions
 
