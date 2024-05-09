@@ -1,0 +1,15 @@
+{
+    "total_sentences": 188,
+    "mean_voice_assistant_response_time": 1.5066178723119517,
+    "mean_time_to_first_token": 0.35827417381385224,
+    "mean_first_token_to_speech": 1.1483436984980995,
+    "mean_tts_process_seconds": 0.1691282214993175,
+    "mean_num_words": 41,
+    "mean_num_tokens_per_second": 56.423055811571224,
+    "std_voice_assistant_response_time": 0.6349979121985163,
+    "std_time_to_first_token": 0.06863878788533606,
+    "std_first_token_to_speech": 0.629095470390001,
+    "std_tts_process_seconds": 0.17448932178644022,
+    "std_num_words": 21,
+    "std_num_tokens_per_second": 10.375394672130444
+}
