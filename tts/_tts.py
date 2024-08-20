@@ -143,9 +143,7 @@ class ElevenLabsSynthesizer(Synthesizer):
             self._url,
             json=payload,
             headers=self._headers,
-            params={
-                "optimize_streaming_latency": "3",
-                "output_format": "pcm_22500"}
+            params={"output_format": "pcm_22500"}
         )
 
         for chunk in response.iter_content(chunk_size=self.CHUNK_SIZE):
@@ -167,7 +165,7 @@ class ElevenLabsWebSocketSynthesizer(Synthesizer):
     VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
     URI = \
         "wss://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream-input?" \
-        "model_id=eleven_turbo_v2&output_format=pcm_22050&optimize_streaming_latency=3"
+        "model_id=eleven_turbo_v2_5&output_format=pcm_22050"
 
     def __init__(self, api_key: str, **kwargs: Any) -> None:
         super().__init__(sample_rate=self.SAMPLE_RATE, audio_encoding=self.AUDIO_ENCODING, **kwargs)
@@ -437,7 +435,7 @@ class PicovoiceOrcaSynthesizer(Synthesizer):
             text_streamable=True,
             audio_encoding=self.AUDIO_ENCODING)
 
-        self._orca_stream = self._orca.open_stream()
+        self._orca_stream = self._orca.stream_open()
 
         self._queue: Queue[Optional[PicovoiceOrcaSynthesizer.OrcaTextInput]] = Queue()
 
