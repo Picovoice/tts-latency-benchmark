@@ -165,7 +165,7 @@ Replace `${PV_ACCESS_KEY}` with your Picovoice AccessKey.
 python3 benchmark.py \
 --openai-api-key ${OPENAI_API_KEY} \
 --engine picovoice_orca \
---pv-access-key ${PV_ACCESS_KEY}
+--picovoice-access-key ${PV_ACCESS_KEY}
 ```
 
 ## Results
