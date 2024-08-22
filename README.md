@@ -190,4 +190,4 @@ interactions.
 |         ElevenLabs         |        1150 ms        |            1510 ms            |
 | ElevenLabs Streaming Input |        840 ms         |            1250 ms            |
 |         OpenAI TTS         |        2110 ms        |            2470 ms            |
-|       Picovoice Orca       |        190 ms         |            560 ms             |
+|       Picovoice Orca       |        130 ms         |            520 ms             |
