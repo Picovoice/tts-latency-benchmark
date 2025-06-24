@@ -25,7 +25,7 @@ to compare their response times.
 
 ## Data
 
-The public [taskmaster2](https://huggingface.co/datasets/taskmaster2) dataset contains text data of goal oriented
+The public [taskmaster2](https://github.com/google-research-datasets/Taskmaster/tree/master/TM-2-2020) dataset contains text data of goal oriented
 conversations between a user and an assistant.
 We randomly select user questions from these example conversations and use them as input to the LLM.
 The topics of the user queries are diverse and include flight booking, food ordering, hotel booking, movies and music
