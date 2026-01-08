@@ -426,9 +426,14 @@ class PicovoiceOrcaSynthesizer(Synthesizer):
             timer: Timer,
             access_key: str,
             model_path: Optional[str] = None,
+            device: Optional[str] = None,
             library_path: Optional[str] = None,
     ) -> None:
-        self._orca = pvorca.create(access_key=access_key, model_path=model_path, library_path=library_path)
+        self._orca = pvorca.create(
+            access_key=access_key,
+            model_path=model_path,
+            device=device,
+            library_path=library_path)
         super().__init__(
             sample_rate=self._orca.sample_rate,
             timer=timer,

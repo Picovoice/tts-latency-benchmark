@@ -23,7 +23,7 @@ from tts import (
     Timer,
 )
 
-DEFAULT_RESULTS_FOLDER = os.path.join(os.path.dirname(__file__), "results")
+DEFAULT_RESULTS_FOLDER = os.path.join(os.path.dirname(__file__), "results", "data")
 DEFAULT_DATASET = TextDatasets.TASKMASTER2
 
 
@@ -185,19 +185,16 @@ class Stats:
 
 
 def get_default_llm_type(tts_type: Synthesizers) -> LLMs:
-    return LLMs.OPENAI if tts_type is not Synthesizers.ELEVENLABS_WEBSOCKET else LLMs.OPENAI_ASYNC
+    return LLMs.PICOLLM
 
 
 def get_llm_init_kwargs(args: argparse.Namespace) -> Dict[str, str]:
     kwargs = dict()
     llm_type = get_default_llm_type(Synthesizers(args.synthesizer))
 
-    if llm_type is LLMs.OPENAI or llm_type is LLMs.OPENAI_ASYNC:
-        if args.openai_api_key is None:
-            raise ValueError(
-                f"An OpenAI access key is required when using OpenAI models. Specify with `--openai-api-key`.")
-
-        kwargs["api_key"] = args.openai_api_key
+    if llm_type is LLMs.PICOLLM:
+        kwargs["access_key"] = args.picovoice_access_key
+        kwargs["model_path"] = args.picollm_model_path
 
     return kwargs
 
@@ -212,6 +209,7 @@ def get_synthesizer_init_kwargs(args: argparse.Namespace) -> Dict[str, str]:
                 "Picovoice access key is required when using Picovoice TTS. Specify with `--picovoice-access-key`.")
         kwargs["access_key"] = args.picovoice_access_key
         kwargs["model_path"] = args.orca_model_path
+        kwargs["device"] = args.orca_device
         kwargs["library_path"] = args.orca_library_path
 
     elif synthesizer_type is Synthesizers.AZURE_TTS:
@@ -340,11 +338,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--openai-api-key",
-        required=True,
-        help="Open AI API key. Needed when using openai models")
-
-    parser.add_argument(
         "--engine",
         dest="synthesizer",
         default=Synthesizers.PICOVOICE_ORCA.value,
@@ -352,8 +345,12 @@ if __name__ == "__main__":
         help="Choose voice synthesizer to use")
     parser.add_argument(
         "--picovoice-access-key",
-        default=None,
+        required=True,
         help="AccessKey obtained from Picovoice Console")
+    parser.add_argument(
+        "--picollm-model-path",
+        required=True,
+        help="PicoLLM model obtained from Picovoice Console")
     parser.add_argument(
         "--orca-model-path",
         default=None,
@@ -362,6 +359,15 @@ if __name__ == "__main__":
         "--orca-library-path",
         default=None,
         help="Path to Orca's dynamic library")
+    parser.add_argument(
+        "--orca-device",
+        default=None,
+        help="Path to Orca's dynamic library")
+
+    parser.add_argument(
+        "--openai-api-key",
+        default=None,
+        help="Open AI API key. Needed when using openai models")
 
     parser.add_argument(
         "--aws-profile-name",

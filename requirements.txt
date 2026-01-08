@@ -6,7 +6,8 @@ ibm-watson>=7.0.0
 matplotlib
 numpy
 openai
-pvorca==1.0.0
+pvorca==2.0.0
+picollm==2.0.0
 requests
 soundfile
 tqdm
