@@ -2,7 +2,6 @@ azure-cognitiveservices-speech
 boto3
 datasets==2.15.0
 elevenlabs
-ibm-watson>=7.0.0
 matplotlib
 numpy
 openai

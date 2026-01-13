@@ -31,7 +31,6 @@ class Synthesizers(Enum):
     AMAZON_POLLY = "amazon_polly"
     ELEVENLABS = "elevenlabs"
     ELEVENLABS_WEBSOCKET = "elevenlabs_websocket"
-    IBM_WATSON_TTS = "ibm_watson_tts"
     OPENAI_TTS = "openai_tts"
     PICOVOICE_ORCA = "picovoice_orca"
 
@@ -88,7 +87,6 @@ class Synthesizer:
             Synthesizers.AZURE_TTS: AzureSynthesizer,
             Synthesizers.ELEVENLABS: ElevenLabsSynthesizer,
             Synthesizers.ELEVENLABS_WEBSOCKET: ElevenLabsWebSocketSynthesizer,
-            Synthesizers.IBM_WATSON_TTS: IBMWatsonSynthesizer,
             Synthesizers.OPENAI_TTS: OpenAISynthesizer,
             Synthesizers.PICOVOICE_ORCA: PicovoiceOrcaSynthesizer,
         }
@@ -231,44 +229,6 @@ class ElevenLabsWebSocketSynthesizer(Synthesizer):
     @property
     def is_async(self) -> bool:
         return True
-
-    def __str__(self) -> str:
-        return f"{self.NAME}"
-
-
-class IBMWatsonSynthesizer(Synthesizer):
-    NAME = "IBM Watson TTS"
-
-    SAMPLE_RATE = 22050
-    AUDIO_ENCODING = AudioEncodings.BYTES
-    CHUNK_SIZE = 10 * 1024
-
-    def __init__(
-            self,
-            api_key: str,
-            service_url: str,
-            **kwargs: Any
-    ) -> None:
-        from ibm_watson import TextToSpeechV1
-        from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
-        super().__init__(sample_rate=self.SAMPLE_RATE, audio_encoding=self.AUDIO_ENCODING, **kwargs)
-
-        authenticator = IAMAuthenticator(api_key)
-        self._text_to_speech = TextToSpeechV1(authenticator=authenticator)
-        self._text_to_speech.set_service_url(service_url)
-
-    def synthesize(self, text_stream: Generator[str, None, None]) -> None:
-        text = self._read_text_stream(text_stream)
-
-        self._timer.log_time_first_synthesis_request()
-
-        response = self._text_to_speech.synthesize(text, accept=f"audio/l16;rate={self.sample_rate}")
-
-        for chunk in response.get_result().iter_content(chunk_size=self.CHUNK_SIZE):
-            self._timer.maybe_log_time_first_audio()
-            self._audio_sink.add(data=chunk)
-
-        self._timer.log_time_last_audio()
 
     def __str__(self) -> str:
         return f"{self.NAME}"

@@ -232,14 +232,6 @@ def get_synthesizer_init_kwargs(args: argparse.Namespace) -> Dict[str, str]:
                 "Elevenlabs API key is required when using Elevenlabs TTS. Specify with `--elevenlabs-api-key`.")
         kwargs["api_key"] = args.elevenlabs_api_key
 
-    elif synthesizer_type is Synthesizers.IBM_WATSON_TTS:
-        if args.ibm_watson_api_key is None or args.ibm_watson_service_url is None:
-            raise ValueError(
-                "IBM Watson API key and service URL are required when using IBM Watson TTS. "
-                "Specify with `--ibm-watson-api-key` and `--ibm-watson-service-url`.")
-        kwargs["api_key"] = args.ibm_watson_api_key
-        kwargs["service_url"] = args.ibm_watson_service_url
-
     elif synthesizer_type is Synthesizers.OPENAI_TTS:
         if args.openai_api_key is None:
             raise ValueError(
@@ -382,15 +374,6 @@ if __name__ == "__main__":
         "--azure-speech-region",
         default=None,
         help="Azure speech location")
-
-    parser.add_argument(
-        "--ibm-watson-api-key",
-        default=None,
-        help="IBM Watson API key")
-    parser.add_argument(
-        "--ibm-watson-service-url",
-        default=None,
-        help="IBM Watson service URL")
 
     parser.add_argument(
         "--elevenlabs-api-key",
