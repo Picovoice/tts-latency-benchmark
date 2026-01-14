@@ -357,16 +357,16 @@ class OpenAISynthesizer(Synthesizer):
 
         self._timer.maybe_log_time_first_synthesis_request()
 
-        response = self._client.audio.speech.create(
+        with self._client.audio.speech.with_streaming_response.create(
             model=self._model_name,
             voice=self._voice_name,
             response_format="pcm",
-            input=text)
-
-        for data in response.iter_bytes(chunk_size=self.CHUNK_SIZE):
-            self._timer.maybe_log_time_first_audio()
-            self._audio_sink.add(data=data)
-        self._timer.log_time_last_audio()
+            input=text
+        ) as response:
+            for data in response.iter_bytes(chunk_size=self.CHUNK_SIZE):
+                self._timer.maybe_log_time_first_audio()
+                self._audio_sink.add(data=data)
+            self._timer.log_time_last_audio()
 
     def __str__(self) -> str:
         return f"{self.NAME}"
