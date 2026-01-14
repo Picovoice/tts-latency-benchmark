@@ -195,6 +195,7 @@ def get_llm_init_kwargs(args: argparse.Namespace) -> Dict[str, str]:
     if llm_type is LLMs.PICOLLM:
         kwargs["access_key"] = args.picovoice_access_key
         kwargs["model_path"] = args.picollm_model_path
+        kwargs["device"] = args.picollm_device
 
     return kwargs
 
@@ -344,6 +345,10 @@ if __name__ == "__main__":
         required=True,
         help="PicoLLM model obtained from Picovoice Console")
     parser.add_argument(
+        "--picollm-device",
+        default=None,
+        help="Device for picollm to use")
+    parser.add_argument(
         "--orca-model-path",
         default=None,
         help="Path to the model parameters file")
@@ -354,7 +359,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--orca-device",
         default=None,
-        help="Path to Orca's dynamic library")
+        help="Device for orca to use")
 
     parser.add_argument(
         "--openai-api-key",

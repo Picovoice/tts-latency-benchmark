@@ -84,12 +84,13 @@ class picoLLM(LLM):
             self,
             access_key: str,
             model_path: str,
+            device: str,
             **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
 
         import picollm
-        self._client = picollm.create(access_key, model_path)
+        self._client = picollm.create(access_key, model_path, device)
         self._dialog = self._client.get_dialog(system=LLM.SYSTEM_MESSAGE)
 
     def _append_user_message(self, message: str) -> None:
