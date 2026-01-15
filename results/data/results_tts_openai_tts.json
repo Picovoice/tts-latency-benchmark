@@ -1,15 +1,15 @@
 {
-    "total_sentences": 187,
-    "mean_voice_assistant_response_time": 2.468926818065226,
-    "mean_time_to_first_token": 0.3635389163074168,
-    "mean_first_token_to_speech": 2.1053879017578088,
-    "mean_tts_process_seconds": 1.070898104319598,
-    "mean_num_words": 42,
-    "mean_num_tokens_per_second": 53.81429242259463,
-    "std_voice_assistant_response_time": 0.958890238583064,
-    "std_time_to_first_token": 0.06609477241364377,
-    "std_first_token_to_speech": 0.9651326335157139,
-    "std_tts_process_seconds": 0.2800034799450302,
-    "std_num_words": 24,
-    "std_num_tokens_per_second": 8.610192422501967
+    "total_sentences": 200,
+    "mean_voice_assistant_response_time": 2.9258502673550812,
+    "mean_time_to_first_token": 0.07766173986008652,
+    "mean_first_token_to_speech": 2.8481885274949947,
+    "mean_tts_process_seconds": 1.437088376765032,
+    "mean_num_words": 77,
+    "mean_num_tokens_per_second": 70.25762070200354,
+    "std_voice_assistant_response_time": 0.7619496841348302,
+    "std_time_to_first_token": 0.003935216976818707,
+    "std_first_token_to_speech": 0.7617044459665507,
+    "std_tts_process_seconds": 0.443737519801882,
+    "std_num_words": 27,
+    "std_num_tokens_per_second": 1.207344588108416
 }
