@@ -99,7 +99,7 @@ pip3 install -r requirements.txt
 ```
 
 In the following, we provide instructions for running the benchmark for each engine.
-For each benchmark an OpenAI API key is required to generate responses from the LLM. Replace `${OPENAI_API_KEY}` with
+For each benchmark a Picovoice access key is required to generate responses from the LLM. Replace `${PV_ACCESS_KEY}` with
 it in the following instructions.
 
 ### Amazon Polly Instructions
@@ -108,7 +108,7 @@ Replace `${AWS_PROFILE}` with the name of the AWS profile you wish to use.
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY} \
+--picovoice-access-key ${PV_ACCESS_KEY} \
 --engine amazon_polly \
 --aws-profile-name ${AWS_PROFILE}
 ```
@@ -119,7 +119,7 @@ Replace `${AZURE_SPEECH_KEY}` and `${AZURE_SPEECH_LOCATION}` with the informatio
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY} \
+--picovoice-access-key ${PV_ACCESS_KEY} \
 --engine azure_tts \
 --azure-speech-key ${AZURE_SPEECH_KEY} \
 --azure-speech-region ${AZURE_SPEECH_LOCATION}
@@ -133,7 +133,7 @@ Without input streaming:
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY} \
+--picovoice-access-key ${PV_ACCESS_KEY} \
 --engine elevenlabs \
 --elevenlabs-api-key ${ELEVENLABS_API_KEY}
 ```
@@ -142,7 +142,7 @@ With input streaming:
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY} \
+--picovoice-access-key ${PV_ACCESS_KEY} \
 --engine elevenlabs_websocket \
 --elevenlabs-api-key ${ELEVENLABS_API_KEY}
 ```
@@ -153,6 +153,7 @@ Replace `${OPENAI_API_KEY}` with your OpenAI API key.
 
 ```console
 python3 benchmark.py \
+--picovoice-access-key ${PV_ACCESS_KEY} \
 --openai-api-key ${OPENAI_API_KEY} \
 --engine openai_tts
 ```
@@ -163,9 +164,8 @@ Replace `${PV_ACCESS_KEY}` with your Picovoice AccessKey.
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY} \
+--picovoice-access-key ${PV_ACCESS_KEY} \
 --engine picovoice_orca \
---picovoice-access-key ${PV_ACCESS_KEY}
 ```
 
 ## Results

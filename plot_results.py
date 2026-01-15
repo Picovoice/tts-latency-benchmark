@@ -131,14 +131,16 @@ def _plot(
     total_delays_std = []
     for i, (synthesizer, mean, std) in enumerate(results):
         mean_total_delay = mean.voice_assistant_response_time if not only_tts else mean.first_token_to_speech
+        std_total_delay = std.voice_assistant_response_time if not only_tts else std.first_token_to_speech
         rounded_result = round_result(mean_total_delay)
+        rounded_std = round_result(std_total_delay)
         total_delays.append(rounded_result)
         std_total_delay = std.voice_assistant_response_time if not only_tts else std.first_token_to_speech
         total_delays_std.append(round_result(std_total_delay))
         ax.text(
             i,
             rounded_result + 80,
-            f'{rounded_result:.0f} ms',
+            f'{rounded_result:.0f} ms' if not show_error_bars else f'{rounded_result:.0f}±{rounded_std:.0f} ms',
             ha="center",
             color=BLACK,
             fontsize=12)
