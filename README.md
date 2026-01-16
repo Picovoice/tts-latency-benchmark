@@ -18,7 +18,7 @@ engines, when used in conjunction with large language models (LLMs) for voice as
 
 This benchmark simulates user - voice-assistant interactions, by generating LLM responses to user questions
 and synthesizing the response to speech as soon as possible.
-We sample user queries from a public dataset and feed them to [picoLLM](https://github.com/Picovoice/picollm) (`llama-3.2-1b-instruct-385`).
+We sample user queries from a public dataset and feed them to [picoLLM](https://picovoice.ai/picollm/) (`llama-3.2-1b-instruct-385`).
 picoLLM generates responses token-by-token, which are passed to different text-to-speech (TTS) engines
 to compare their response times.
 
@@ -84,7 +84,7 @@ Picovoice's [Cheetah Streaming Speech-to-Text](https://picovoice.ai/platform/che
 we can assume that the latency introduced by the Speech-to-Text is small compared to the total response time.
 Head over to our GitHub demo
 at [LLM Voice Assistant](https://github.com/Picovoice/orca/tree/main/demo/llm_voice_assistant),
-showcasing a real voice-to-voice conversation with [picoLLM](https://github.com/Picovoice/picollm),
+showcasing a real voice-to-voice conversation with [picoLLM](https://picovoice.ai/picollm/),
 using different TTS systems.
 
 ## Usage
