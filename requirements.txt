@@ -1,14 +1,14 @@
-azure-cognitiveservices-speech
-boto3
+azure-cognitiveservices-speech==1.47.0
+boto3==1.34.60
 datasets==2.15.0
-elevenlabs
-ibm-watson>=7.0.0
+elevenlabs==2.28.0
 matplotlib
 numpy
-openai
-pvorca==1.0.0
+openai==2.9.0
+pvorca==2.0.0
+picollm==2.0.0
 requests
 soundfile
 tqdm
 urllib3<2  # for compatibility with aws
-websockets
+websockets==15.0.1

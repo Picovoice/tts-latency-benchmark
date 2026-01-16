@@ -18,9 +18,8 @@ engines, when used in conjunction with large language models (LLMs) for voice as
 
 This benchmark simulates user - voice-assistant interactions, by generating LLM responses to user questions
 and synthesizing the response to speech as soon as possible.
-We sample user queries from a public dataset and feed them to ChatGPT (`gpt-3.5-turbo`)
-using [OpenAI Chat Completion API](https://platform.openai.com/docs/guides/text-generation/chat-completions-api).
-ChatGPT generates responses token-by-token, which are passed to different text-to-speech (TTS) engines
+We sample user queries from a public dataset and feed them to [picoLLM](https://picovoice.ai/picollm/) (`llama-3.2-1b-instruct-385`).
+picoLLM generates responses token-by-token, which are passed to different text-to-speech (TTS) engines
 to compare their response times.
 
 ## Data
@@ -85,7 +84,8 @@ Picovoice's [Cheetah Streaming Speech-to-Text](https://picovoice.ai/platform/che
 we can assume that the latency introduced by the Speech-to-Text is small compared to the total response time.
 Head over to our GitHub demo
 at [LLM Voice Assistant](https://github.com/Picovoice/orca/tree/main/demo/llm_voice_assistant),
-showcasing a real voice-to-voice conversation with ChatGPT, using different TTS systems.
+showcasing a real voice-to-voice conversation with [picoLLM](https://picovoice.ai/picollm/),
+using different TTS systems.
 
 ## Usage
 
@@ -98,9 +98,19 @@ This benchmark has been developed and tested on `Ubuntu 22.04`, using `Python 3.
 pip3 install -r requirements.txt
 ```
 
+- Download the picoLLM model
+
+For each benchmark a picoLLM model is required to generate responses from the LLM. Replace `${PICOLLM_MODEL_PATH}` with
+the path to it in the following instructions. The picoLLM model used in the benchmark is `llama-3.2-1b-instruct-385` and can be
+downloaded from [Picovoice Console](https://console.picovoice.ai/picollm).
+
+- Get an AccessKey
+
+For each benchmark a Picovoice AccessKey is required to generate responses from the LLM. Replace `${PV_ACCESS_KEY}` with
+it in the following instructions. Everyone who signs up for
+[Picovoice Console](https://console.picovoice.ai/) receives a unique AccessKey.
+
 In the following, we provide instructions for running the benchmark for each engine.
-For each benchmark an OpenAI API key is required to generate responses from the LLM. Replace `${OPENAI_API_KEY}` with
-it in the following instructions.
 
 ### Amazon Polly Instructions
 
@@ -108,7 +118,8 @@ Replace `${AWS_PROFILE}` with the name of the AWS profile you wish to use.
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY} \
+--picovoice-access-key ${PV_ACCESS_KEY} \
+--picollm-model-path ${PICOLLM_MODEL_PATH} \
 --engine amazon_polly \
 --aws-profile-name ${AWS_PROFILE}
 ```
@@ -119,7 +130,8 @@ Replace `${AZURE_SPEECH_KEY}` and `${AZURE_SPEECH_LOCATION}` with the informatio
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY} \
+--picovoice-access-key ${PV_ACCESS_KEY} \
+--picollm-model-path ${PICOLLM_MODEL_PATH} \
 --engine azure_tts \
 --azure-speech-key ${AZURE_SPEECH_KEY} \
 --azure-speech-region ${AZURE_SPEECH_LOCATION}
@@ -133,7 +145,8 @@ Without input streaming:
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY} \
+--picovoice-access-key ${PV_ACCESS_KEY} \
+--picollm-model-path ${PICOLLM_MODEL_PATH} \
 --engine elevenlabs \
 --elevenlabs-api-key ${ELEVENLABS_API_KEY}
 ```
@@ -142,7 +155,8 @@ With input streaming:
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY} \
+--picovoice-access-key ${PV_ACCESS_KEY} \
+--picollm-model-path ${PICOLLM_MODEL_PATH} \
 --engine elevenlabs_websocket \
 --elevenlabs-api-key ${ELEVENLABS_API_KEY}
 ```
@@ -153,6 +167,8 @@ Replace `${OPENAI_API_KEY}` with your OpenAI API key.
 
 ```console
 python3 benchmark.py \
+--picovoice-access-key ${PV_ACCESS_KEY} \
+--picollm-model-path ${PICOLLM_MODEL_PATH} \
 --openai-api-key ${OPENAI_API_KEY} \
 --engine openai_tts
 ```
@@ -163,9 +179,9 @@ Replace `${PV_ACCESS_KEY}` with your Picovoice AccessKey.
 
 ```console
 python3 benchmark.py \
---openai-api-key ${OPENAI_API_KEY} \
+--picovoice-access-key ${PV_ACCESS_KEY} \
+--picollm-model-path ${PICOLLM_MODEL_PATH} \
 --engine picovoice_orca \
---picovoice-access-key ${PV_ACCESS_KEY}
 ```
 
 ## Results
@@ -185,9 +201,9 @@ interactions.
 
 |           Engine           | First Token to Speech | Voice Assistant Response Time |
 |:--------------------------:|:---------------------:|:-----------------------------:|
-|        Amazon Polly        |        1090 ms        |            1440 ms            |
-|    Azure Text-to-Speech    |        1140 ms        |            1500 ms            |
-|         ElevenLabs         |        1150 ms        |            1510 ms            |
-| ElevenLabs Streaming Input |        840 ms         |            1250 ms            |
-|         OpenAI TTS         |        2110 ms        |            2470 ms            |
-|       Picovoice Orca       |        130 ms         |            520 ms             |
+|        Amazon Polly        |        1540 ms        |            1610 ms            |
+|    Azure Text-to-Speech    |        1580 ms        |            1660 ms            |
+|         ElevenLabs         |        1470 ms        |            1550 ms            |
+| ElevenLabs Streaming Input |        340 ms         |            500 ms             |
+|         OpenAI TTS         |        2850 ms        |            2930 ms            |
+|       Picovoice Orca       |        100 ms         |            170 ms             |

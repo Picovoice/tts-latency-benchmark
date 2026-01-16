@@ -4,11 +4,14 @@ from typing import (
     Generator,
     AsyncGenerator,
 )
+from queue import Queue
+from threading import Thread
+
+import asyncio
 
 
 class LLMs(Enum):
-    OPENAI = "openai"
-    OPENAI_ASYNC = "openai_async"
+    PICOLLM = "picollm"
 
 
 class LLM:
@@ -20,27 +23,26 @@ class LLM:
 
     def __init__(self, system_message: str = SYSTEM_MESSAGE) -> None:
         self._system_message = system_message
-        self._history = [{"role": "system", "content": self._system_message}]
         self._response = ""
 
     def _append_user_message(self, message: str) -> None:
-        self._history.append({"role": "user", "content": message})
+        raise NotImplementedError()
 
     def _reset_history(self) -> None:
-        self._history = [{"role": "system", "content": self._system_message}]
+        raise NotImplementedError()
 
-    def _query(self, user_input: str) -> Generator[str, None, None]:
+    def _query(self) -> Generator[str, None, None]:
         raise NotImplementedError(
             f"Method `chat_stream` must be implemented in a subclass of {self.__class__.__name__}")
 
-    def _query_async(self, user_input: str) -> AsyncGenerator[str, None]:
+    def _query_async(self) -> AsyncGenerator[str, None]:
         raise NotImplementedError(
             f"Method `chat_stream` must be implemented in a subclass of {self.__class__.__name__}")
 
     def query(self, user_input: str) -> Generator[str, None, None]:
         self._append_user_message(user_input)
         response = ""
-        for token in self._query(user_input=user_input):
+        for token in self._query():
             yield token
             response += token
         self._response = response
@@ -49,7 +51,7 @@ class LLM:
     async def query_async(self, user_input: str) -> AsyncGenerator[str, None]:
         self._append_user_message(user_input)
         response = ""
-        async for token in self._query_async(user_input=user_input):
+        async for token in self._query_async():
             if token is not None:
                 yield token
                 response += token
@@ -63,8 +65,7 @@ class LLM:
     @classmethod
     def create(cls, llm_type: LLMs, **kwargs) -> 'LLM':
         classes = {
-            LLMs.OPENAI: OpenAILLM,
-            LLMs.OPENAI_ASYNC: OpenAILLMAsync,
+            LLMs.PICOLLM: picoLLM,
         }
 
         if llm_type not in classes:
@@ -76,67 +77,80 @@ class LLM:
         raise NotImplementedError()
 
 
-class OpenAILLM(LLM):
-    MODEL_NAME = "gpt-3.5-turbo"
+class picoLLM(LLM):
     RANDOM_SEED = 7777
 
     def __init__(
             self,
-            api_key: str,
-            model_name: str = MODEL_NAME,
+            access_key: str,
+            model_path: str,
+            device: str,
             **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
 
-        from openai import OpenAI
-        self._model_name = model_name
-        self._client = OpenAI(api_key=api_key)
+        import picollm
+        self._client = picollm.create(access_key, model_path, device)
+        self._dialog = self._client.get_dialog(system=LLM.SYSTEM_MESSAGE)
 
-    def _query(self, user_input: str) -> Generator[str, None, None]:
-        stream = self._client.chat.completions.create(
-            model=self._model_name,
-            messages=self._history,
-            seed=self.RANDOM_SEED,
-            stream=True)
-        for chunk in stream:
-            token = chunk.choices[0].delta.content
-            if token is not None:
-                yield token
-        self._reset_history()
+    def _append_user_message(self, message: str) -> None:
+        self._dialog.add_human_request(message)
 
-    def __str__(self) -> str:
-        return f"ChatGPT ({self._model_name})"
+    def _reset_history(self) -> None:
+        self._dialog = self._client.get_dialog(system=LLM.SYSTEM_MESSAGE)
 
+    def _query(self) -> Generator[str, None, None]:
+        queue = Queue()
 
-class OpenAILLMAsync(LLM):
-    MODEL_NAME = "gpt-3.5-turbo"
-    RANDOM_SEED = 7777
+        def callback(token: str):
+            queue.put(token)
+        def thread_main():
+            self._client.generate(
+                prompt=self._dialog.prompt(),
+                seed=picoLLM.RANDOM_SEED,
+                stream_callback=callback,
+                completion_token_limit=128,
+            )
+            queue.put(None)
 
-    def __init__(
-            self,
-            api_key: str,
-            model_name: str = MODEL_NAME,
-            **kwargs: Any,
-    ) -> None:
-        super().__init__(**kwargs)
+        thread = Thread(target=thread_main)
+        thread.start()
 
-        from openai import AsyncOpenAI
-        self._model_name = model_name
-        self._client = AsyncOpenAI(api_key=api_key)
-
-    async def _query_async(self, user_input: str) -> AsyncGenerator[str, None]:
-        stream = await self._client.chat.completions.create(
-            model=self._model_name,
-            messages=self._history,
-            seed=self.RANDOM_SEED,
-            stream=True)
-        async for chunk in stream:
-            token = chunk.choices[0].delta.content
+        while not queue.empty() or thread.is_alive():
+            token = queue.get()
+            if token is None:
+                break
             yield token
-        self._reset_history()
+        thread.join()
+
+    async def _query_async(self) -> AsyncGenerator[str, None]:
+        queue = asyncio.Queue()
+        loop = asyncio.get_running_loop()
+
+        def callback(token: str):
+            loop.call_soon_threadsafe(queue.put_nowait, token)
+        def thread_main():
+            self._client.generate(
+                prompt=self._dialog.prompt(),
+                seed=picoLLM.RANDOM_SEED,
+                stream_callback=callback,
+                completion_token_limit=128,
+            )
+            loop.call_soon_threadsafe(queue.put_nowait, None)
+
+        thread = Thread(target=thread_main)
+        thread.start()
+
+        while not queue.empty() or thread.is_alive():
+            token = await queue.get()
+            if token is None:
+                break
+            yield token
+            queue.task_done()
+        thread.join()
 
     def __str__(self) -> str:
-        return f"ChatGPT ({self._model_name})"
+        return str(self._client)
 
 
 __all__ = [
